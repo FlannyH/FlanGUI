@@ -6,15 +6,66 @@ int main()
 {
     Flan::Renderer renderer;
     renderer.init();
-    float t = 0.0f;
     while (!glfwWindowShouldClose(renderer._window)) {
-        t += 0.0005f;
+        // Get time
+        std::time_t t = std::time(0);
+        std::tm now;
+        localtime_s(&now, &t);
+        float sec = now.tm_sec;
+        float min = now.tm_min + sec / 60.f;
+        float hour = now.tm_hour + min / 60.f;
+        float sec_angle  = -((float)sec / 60.f) * 2.f * 3.14159265359f + (0.5f * 3.14159265359f);
+        float min_angle  = -(float)min / 60.f * 2.f * 3.14159265359f + (0.5f * 3.14159265359f);
+        float hour_angle = -(float)hour / 12.f * 2.f * 3.14159265359f + (0.5f * 3.14159265359f);
+
+        // Draw circle
         renderer.begin_frame();
-        renderer.draw_line({ 0.0f, 0.0f }, { 500 * sinf(t), 500 * cosf(t)}, {1.0f, 0.0f, 1.0f, 0.0f}, 20.f, 0.0f);
-        renderer.draw_linebox({ -500, 500 }, { 500, -500 }, { 0, 1, 0, 1 }, 5, 0.0f);
-        renderer.draw_line({-600, -600}, {-700, -700}, {1, 0, 0,1}, 3, 0);
-        renderer.draw_line({ -600, -600 }, { -600, -700 }, { 1, 0, 0,1 }, 3, 0);
-        renderer.draw_linecircle({ 0, 0 }, { 500, 500 }, { 0, 1, 1, 1 }, 10);
+        renderer.draw_linecircle({ 0,0 }, { 600, 600 }, { 0,1,0,1 }, 4);
+        renderer.draw_linecircle({ 0,0 }, { 20, 20 }, { 0,1,0,1 }, 10);
+
+        // Draw hour stripes
+        for (int i = 0; i < 12; i++) {
+            glm::vec2 direction = {
+                cosf(float(i) / 12 * 2 * 3.14159265359f),
+                sinf(float(i) / 12 * 2 * 3.14159265359f),
+            };
+            renderer.draw_line(direction * 500.f, direction * 600.f, { 0, 0.5f, 0, 2 });
+        }
+
+        // Draw minute/second stripes
+        for (int i = 0; i < 60; i++) {
+            glm::vec2 direction = {
+                cosf(float(i) / 60 * 2 * 3.14159265359f),
+                sinf(float(i) / 60 * 2 * 3.14159265359f),
+            };
+            renderer.draw_line(direction * 560.f, direction * 600.f, { 0, 0.5f, 0, 1 });
+        }
+
+        //Draw second hand
+        {
+            glm::vec2 direction = {
+                cosf(sec_angle),
+                sinf(sec_angle),
+            };
+            renderer.draw_line({ 0,0 }, direction * 520.f, { 0, 1, 0, 1 }, 2);
+        }
+        //Draw minute hand
+        {
+            glm::vec2 direction = {
+                cosf(min_angle),
+                sinf(min_angle),
+            };
+            renderer.draw_line({ 0,0 }, direction * 470.f, { 0, 1, 0, 1 }, 8);
+        }
+        //Draw hour hand
+        {
+            glm::vec2 direction = {
+                cosf(hour_angle),
+                sinf(hour_angle),
+            };
+            renderer.draw_line({ 0,0 }, direction * 250.f, { 0, 1, 0, 1 }, 10);
+        }
+
         renderer.end_frame();
     }
 }

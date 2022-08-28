@@ -125,6 +125,36 @@ message:	%s\n",
 
 
 namespace Flan {
+    const std::string vert_shader =
+        "#version 330 core\n"
+        "precision mediump float;\n"
+        "layout (location = 0) in vec3 i_position;\n"
+        "layout (location = 1) in vec2 i_texcoord;\n"
+        "layout (location = 2) in vec4 i_colour;\n"
+        "out vec2 texcoord;\n"
+        "out vec4 colour;\n"
+        "\n"
+        "void main()\n"
+        "{\n"
+        "	gl_Position = vec4(i_position, 1);\n"
+        "	texcoord = i_texcoord;\n"
+        "	colour = i_colour;\n"
+        "}";
+    const std::string frag_shader =
+        "#version 330 core\n"
+        "precision mediump float;\n"
+        "\n"
+        "out vec4 frag_color;\n"
+        "in vec2 texcoord;\n"
+        "in vec4 colour;\n"
+        "\n"
+        "uniform sampler2D tex;\n"
+        "\n"
+        "void main()\n"
+        "{\n"
+        "    frag_color = colour;\n"
+        "}";
+
     void Renderer::init() {
         // Init + window settings
         glfwInit();
@@ -153,7 +183,8 @@ namespace Flan {
         _window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glfwSwapInterval(0);
-        shader = load_shader("Shaders/sprite");
+        //shader = shader_from_file("Shaders/sprite");
+        shader = shader_from_string(vert_shader, frag_shader);
         glUseProgram(shader);
 
         // Create vertex buffer
@@ -267,13 +298,13 @@ namespace Flan {
         }
     }
 
-    GLuint Renderer::load_shader(std::string path) {
+    GLuint Renderer::shader_from_file(std::string path) {
         const GLuint shader_gpu = glCreateProgram();
 
-        bool vert_loaded = load_shader_part(path + ".vert", ShaderType::vertex, shader_gpu);
-        bool frag_loaded = load_shader_part(path + ".frag", ShaderType::pixel, shader_gpu);
-        bool comp_loaded = load_shader_part(path + ".comp", ShaderType::compute, shader_gpu);
-        load_shader_part(path + ".geom", ShaderType::geometry, shader_gpu);
+        bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
+        bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
+        bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
+        shader_part_from_file(path + ".geom", ShaderType::geometry, shader_gpu);
 
         if (
             (vert_loaded && frag_loaded) == false &&
@@ -290,6 +321,14 @@ namespace Flan {
 
         glLinkProgram(shader_gpu);
 
+        return shader_gpu;
+    }
+
+    GLuint Renderer::shader_from_string(std::string vert, std::string frag) {
+        const GLuint shader_gpu = glCreateProgram();
+        shader_part_from_string(vert, ShaderType::vertex, shader_gpu);
+        shader_part_from_string(frag, ShaderType::pixel, shader_gpu);
+        glLinkProgram(shader_gpu);
         return shader_gpu;
     }
 
@@ -313,7 +352,7 @@ namespace Flan {
         return true;
     }
 
-    bool Renderer::load_shader_part(const std::string& path, ShaderType type, const GLuint& program) {
+    bool Renderer::shader_part_from_file(const std::string& path, ShaderType type, const GLuint& program) {
         constexpr int shader_types[]
         {
             GL_VERTEX_SHADER,
@@ -350,6 +389,51 @@ namespace Flan {
         if (log_length > 0)
         {
             printf("[ERROR] File '%s':\n\n%s\n", path.c_str(), frag_shader_error.data());
+            return false;
+        }
+
+        //Attach to program
+        glAttachShader(program, shader);
+
+        return true;
+    }
+
+    bool Renderer::shader_part_from_string(const std::string& string, ShaderType type, const GLuint& program) {
+        constexpr int shader_types[]
+        {
+            GL_VERTEX_SHADER,
+            GL_FRAGMENT_SHADER,
+            GL_GEOMETRY_SHADER,
+            GL_COMPUTE_SHADER,
+        };
+
+        //Read shader source file
+        int shader_size = string.size();
+        const char* shader_data = string.c_str();
+
+        if (shader_data == nullptr) {
+            return false;
+        }
+
+        //Create shader on GPU
+        const GLuint type_to_create = shader_types[static_cast<int>(type)];
+        const GLuint shader = glCreateShader(type_to_create);
+
+        //Compile shader source
+        const char* data = shader_data;
+        glShaderSource(shader, 1, &data, &shader_size);
+        glCompileShader(shader);
+
+        //Error checking
+        GLint result = GL_FALSE;
+        int log_length;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        std::vector<char> frag_shader_error(log_length > 1 ? log_length : 1);
+        glGetShaderInfoLog(shader, log_length, nullptr, frag_shader_error.data());
+        if (log_length > 0)
+        {
+            printf("[ERROR] Shader from string:\n\n%s\n", frag_shader_error.data());
             return false;
         }
 

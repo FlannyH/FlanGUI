@@ -42,8 +42,10 @@ namespace Flan {
         void draw_linecircle(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f);
         void draw_text(const std::string& text, glm::vec2 pos_pixels, float width = 1.0f, float depth = 1.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void* alloc_temp(size_t size, size_t align = 16);
-        GLuint load_shader(std::string path);
-        bool load_shader_part(const std::string& path, ShaderType type, const GLuint& program);
+        GLuint shader_from_file(std::string path);
+        GLuint shader_from_string(std::string vert, std::string frag);
+        bool shader_part_from_file(const std::string& path, ShaderType type, const GLuint& program);
+        bool shader_part_from_string(const std::string& string, ShaderType type, const GLuint& program);
         std::vector<Triangle> _line_queue;
         GLFWwindow* _window = nullptr;
         const glm::ivec2 _res = { 1280, 720 };
