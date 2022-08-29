@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,13 @@ namespace Flan {
         Vertex c;
     };
 
+    struct Font {
+        GLuint texture_id;
+        uint16_t grid_w;
+        uint16_t grid_h;
+        std::vector<int> widths;
+    };
+
     enum class ShaderType {
         vertex,
         pixel,
@@ -40,8 +48,10 @@ namespace Flan {
         void draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void draw_linebox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void draw_linecircle(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f);
-        void draw_text(const std::string& text, glm::vec2 pos_pixels, float width = 1.0f, float depth = 1.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
+        void init_text_lut();
+        void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void* alloc_temp(size_t size, size_t align = 16);
+        bool load_font(std::string path);
         GLuint shader_from_file(std::string path);
         GLuint shader_from_string(std::string vert, std::string frag);
         bool shader_part_from_file(const std::string& path, ShaderType type, const GLuint& program);
@@ -52,5 +62,7 @@ namespace Flan {
         GLuint shader;
         GLuint vao;
         GLuint vbo;
+        Font font;
+        std::map<wchar_t, std::vector<int>> wchar_lut;
     };
 }

@@ -5,6 +5,8 @@
 
 #include "glm/geometric.hpp"
 #include "glm/gtx/exterior_product.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 
 static void debug_callback_func(
@@ -183,8 +185,9 @@ namespace Flan {
         _window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glfwSwapInterval(0);
-        //shader = shader_from_file("Shaders/sprite");
-        shader = shader_from_string(vert_shader, frag_shader);
+        shader = shader_from_file("Shaders/sprite");
+        load_font("font.png");
+        //shader = shader_from_string(vert_shader, frag_shader);
         glUseProgram(shader);
 
         // Create vertex buffer
@@ -296,6 +299,162 @@ namespace Flan {
         for (int i = 0; i < resolution; i++) {
             draw_line(points[i], points[(i + 1) % resolution], color, width, depth);
         }
+    }
+
+    void Renderer::init_text_lut() {
+        // Only init if it's not yet initializdd
+        if (!wchar_lut.empty())
+            return;
+
+        // These are all just regular old ASCII, do those in bulk
+        std::wstring lut = L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¡¿";
+        for (int x = 0; x < lut.size(); x++) {
+            wchar_lut[lut[x]] = { x };
+        }
+
+        // All the accented characters
+        {
+            const std::string ascii_list =      "AAAAACEEEEIIIINOOOOOUUUUY"
+                                                "aaaaaceeeeiiiinooooouuuuy";
+            const std::wstring accented_list = L"ÁÀÂÃÄÇÉÈÊËÍÌÎÏÑÓÒÔÕÖÚÙÛÜÝ"
+                                                "áàâãäçéèêëíìîïñóòôõöúùûüý";
+            const std::string accent_markers =  "0135460134013450135401340"
+                                                "0135460134013450135401340";
+            const int accent_offset = 0x70 - '0';
+
+            for (int x = 0; x < ascii_list.size(); x++) {
+                wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
+            }
+        }
+    }
+
+    void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth) {
+        init_text_lut();
+        glm::vec2 cur_pos = pos;
+        for (auto& c : text) {
+            // Handle newline
+            if (c == '\n') {
+                cur_pos.x = pos.x;
+                cur_pos.y -= (float)font.grid_h * scale.y;
+                continue;
+            }
+            if (c == '\r') {
+                cur_pos.x = pos.x;
+                continue;
+            }
+
+            // Create verts
+            int last_character = 0;
+            //for (int wc : wchar_lut[static_cast<wchar_t>(c)]) {
+            auto& wentry = wchar_lut[static_cast<wchar_t>(c)];
+            for (int i = 0; i < wentry.size(); i++) {
+                auto wc = wentry[i];
+                glm::vec4 color_noalpha = color * glm::vec4(1, 1, 1, 0);
+                glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0)) / glm::vec3(_res, 1.0f);
+                glm::vec2 off_uv = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);
+                glm::vec2 glyph_size = glm::vec2(1.f / 16.f, 1.f / 8.f);
+                float grid_w_2 = static_cast<float>(font.grid_w) / 2.f / _res.x * scale.x;
+                float grid_h_2 = static_cast<float>(font.grid_h) / 2.f / _res.y * scale.y;
+                Vertex v1 = { // top left
+                    pos_depth - glm::vec3(-grid_w_2, +grid_h_2, 0.0f),
+                    glm::vec2(1, 1) * glyph_size + off_uv,
+                    color_noalpha
+                };
+                Vertex v2 = { // top right
+                    pos_depth - glm::vec3(+grid_w_2, +grid_h_2, 0.0f),
+                    glm::vec2(0, 1)* glyph_size + off_uv,
+                    color_noalpha
+                };
+                Vertex v3 = { // bottom right
+                    pos_depth - glm::vec3(+grid_w_2, -grid_h_2, 0.0f),
+                    glm::vec2(0, 0) * glyph_size + off_uv,
+                    color_noalpha
+                };
+                Vertex v4 = { // bottom left
+                    pos_depth - glm::vec3(-grid_w_2, -grid_h_2, 0.0f),
+                    glm::vec2(1, 0) * glyph_size + off_uv,
+                    color_noalpha
+                };
+
+                // Create triangles and add to queue
+                _line_queue.push_back({ v1, v3, v2 });
+                _line_queue.push_back({ v1, v4, v3 });
+            }
+
+            // Move cursor
+            cur_pos.x += font.widths[wentry[0]] * scale.x;
+        }
+    }
+
+    bool Renderer::load_font(std::string path) {
+        // Load image
+        int w, h, c;
+        uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
+
+        // Make sure it's perfectly divides into a 16x16 grid
+        if (w % 16 != 0 || h % 8 != 0) {
+            printf("ERROR: Font atlas is not a multiple of 16 in size. Probably bad size.");
+            return false;
+        }
+
+        // Calculate glyph size
+        const glm::ivec2 glyph_size = { w / 16, h / 8 };
+
+        // Calculate widths
+        int widths[128]{ glyph_size.x };
+
+        // For each glyph get the width by scanning for a red pixel
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 16; x++) {
+                int width = glyph_size.x;
+                for (int glyph_x = 0; glyph_x < glyph_size.x; glyph_x++) {
+                    // Get pixel
+                    int sample_x = (x * glyph_size.x) + glyph_x;
+                    int sample_y = y * glyph_size.y;
+                    uint32_t pixel = (reinterpret_cast<uint32_t*>(data))[sample_y * w + sample_x];
+
+                    // If red (127, 0, 0), the current x-coordinate is the glyph width
+                    if ((pixel & 0x00FFFFFF) == 0x00007F) {
+                        width = glyph_x + 2;
+                        break;
+                    }
+                }
+                widths[x + (y * 16)] = width;
+            }
+        }
+
+        // Remove all the red pixels from the font
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                uint32_t& pixel = (reinterpret_cast<uint32_t*>(data))[y * w + x];
+                if ((pixel & 0x00FFFFFF) == 0x00007F) {
+                    pixel = 0;
+                }
+            }
+        }
+
+        // Upload font texture to GPU
+        GLuint texture_gpu;
+        glGenTextures(1, &texture_gpu);
+        glBindTexture(GL_TEXTURE_2D, texture_gpu);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        // Create font object
+        std::vector<int> widths_vector(128);
+        memcpy_s(widths_vector.data(), widths_vector.size() * 4, widths, 128 * 4);
+        font = Font {
+            texture_gpu,
+            static_cast<uint16_t>(glyph_size.x),
+            static_cast<uint16_t>(glyph_size.y),
+            widths_vector
+        };
+
+        return true;
     }
 
     GLuint Renderer::shader_from_file(std::string path) {
