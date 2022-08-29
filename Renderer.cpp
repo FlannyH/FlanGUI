@@ -301,6 +301,34 @@ namespace Flan {
         }
     }
 
+    void Renderer::draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width, float depth) {
+        // Derive corners of the box
+        glm::vec2 tl = top_left;
+        glm::vec2 br = bottom_right;
+        glm::vec2 bl = { tl.x, br.y };
+        glm::vec2 tr = { br.x, tl.y };
+
+        // Create vertices
+        std::vector<Vertex> verts;
+        verts.push_back({ {tl, depth}, {1, 1}, color });
+        verts.push_back({ {tr, depth}, {1, 0}, color });
+        verts.push_back({ {br, depth}, {0, 1}, color });
+        verts.push_back({ {bl, depth}, {0, 0}, color });
+        draw_polygon(verts);
+    }
+
+    void Renderer::draw_polygon(std::vector<Vertex> verts) {
+        // Scale to screen
+        for (auto& vert : verts) {
+            vert.pos /= glm::vec3(_res, 1.0f);
+        }
+
+        // Add to render queue
+        for (auto i = 0; i < verts.size() - 2; i++) {
+            _line_queue.push_back({ verts[0], verts[i + 2], verts[i + 1] });
+        }
+    }
+
     void Renderer::init_text_lut() {
         // Only init if it's not yet initializdd
         if (!wchar_lut.empty())

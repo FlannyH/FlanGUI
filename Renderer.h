@@ -48,6 +48,8 @@ namespace Flan {
         void draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void draw_linebox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void draw_linecircle(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f);
+        void draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
+        void draw_polygon(std::vector<Vertex> verts);
         void init_text_lut();
         void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void* alloc_temp(size_t size, size_t align = 16);

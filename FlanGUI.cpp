@@ -32,6 +32,7 @@ int main()
         swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps", smooth_dt * 1000.f, 1.0f/smooth_dt);
         renderer.draw_text(frametime_text, { -1240, 680 }, { 4.f, 4.f }, { 1.0, 0.7, 1, 0 }, 0.0f);
         renderer.draw_linebox({ -400, 400 }, { 400, -400 }, { 1, 0, 0, 1 }, 8);
+        renderer.draw_solidbox({ -350, 350 }, { 350, -350 }, { 0.5f, 0, 0, 1 }, 8);
 
         // Draw bubbles
 
