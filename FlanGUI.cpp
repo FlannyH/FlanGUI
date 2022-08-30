@@ -24,21 +24,23 @@ int main()
     while (!glfwWindowShouldClose(renderer.window())) {
         // Draw
         renderer.begin_frame();
-        renderer.draw_linecircle({ 0,0 }, { 600, 600 }, { 0,1,0,1 }, 4, 0.1f, Flan::AnchorPoint::center);
+        renderer.draw_circle_line({ 0,0 }, { 600, 600 }, { 0,1,0,1 }, 4, 0.1f, Flan::AnchorPoint::center);
+        renderer.draw_circle_solid({ 0,0 }, { 580, 580 }, { 0,0.2,0,1 }, 0.1f, Flan::AnchorPoint::center);
         wchar_t frametime_text[64];
-        float dt = calculate_delta_time();
+        const float dt = calculate_delta_time();
         time += dt;
         smooth_dt = smooth_dt + (dt - smooth_dt) * 0.0005f;
         swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps", smooth_dt * 1000.f, 1.0f/smooth_dt);
         renderer.draw_text(frametime_text, { 16, -32 }, { 4.f, 4.f }, { 1.0, 0.7, 1, 0 }, 0.0f);
-        renderer.draw_linebox({ -400, 400 }, { 400, -400 }, { 1, 0, 0, 1 }, 8, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_texturebox("test.png", { -350, 350 }, {350, -350}, {1, 0.5f, 1, 1}, 8, 0.0f, Flan::AnchorPoint::center);
+        renderer.draw_box_line({ -400, 400 }, { 400, -400 }, { 1, 0, 0, 1 }, 8, 0.0f, Flan::AnchorPoint::center);
+        renderer.draw_box_solid({ -380, 380 }, { 380, -380 }, { 0.1, 0, 0, 1 }, 0.1f, Flan::AnchorPoint::center);
+        renderer.draw_box_textured("test.png", { -350, 350 }, {350, -350}, {1, 0.5f, 1, 1}, 8, 0.0f, Flan::AnchorPoint::center);
 
         // Draw bubbles
-        renderer.draw_linecircle({ 100.f * sinf(time * 0.3f) - 500.f, fmod(time * 1000.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_linecircle({  75.f * sinf(time * 0.9f) + 200.f, fmod(time * 700.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_linecircle({ 135.f * sinf(time * 1.2f) - 400.f, fmod(time * 800.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_linecircle({  54.f * sinf(time * 0.5f) + 300.f, fmod(time * 1200.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
+        renderer.draw_circle_line({ 100.f * sinf(time * 0.3f) - 500.f, fmod(time * 1000.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
+        renderer.draw_circle_line({  75.f * sinf(time * 0.9f) + 200.f, fmod(time * 700.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
+        renderer.draw_circle_line({ 135.f * sinf(time * 1.2f) - 400.f, fmod(time * 800.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
+        renderer.draw_circle_line({  54.f * sinf(time * 0.5f) + 300.f, fmod(time * 1200.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
 
         renderer.end_frame();
     }

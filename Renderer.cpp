@@ -286,7 +286,7 @@ namespace Flan {
         _flat_queue.push_back({v1, v4, v3});
     }
 
-    void Renderer::draw_linebox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
+    void Renderer::draw_box_line(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
         // Derive corners of the box
         const glm::vec2 tl = top_left;
         const glm::vec2 br = bottom_right;
@@ -302,23 +302,43 @@ namespace Flan {
         draw_line(bl - y, tl + y, color, width, depth, anchor);
     }
 
-    void Renderer::draw_linecircle(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
-        constexpr int resolution = 32;
-        std::vector<glm::vec2> points(resolution);
+    void Renderer::draw_circle_line(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
+        std::vector<glm::vec2> points(SINE_LUT_RESOLUTION);
 
         // Generate points
-        for (int i = 0; i < resolution; i++) {
-            const float t = static_cast<float>(i) / static_cast<float>(resolution) * 6.28318530718f;
-            points[i] = center + (scale * glm::vec2{ cosf(t), sinf(t) });
+        for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
+            const size_t sx = i;
+            const size_t cx = (sx + (SINE_LUT_RESOLUTION / 4)) % SINE_LUT_RESOLUTION;
+            points[i] = center + (scale * glm::vec2{ _sine_lut[cx], _sine_lut[sx]});
         }
 
         // Draw lines
-        for (int i = 0; i < resolution; i++) {
-            draw_line(points[i], points[(i + 1) % resolution], color, width, depth, anchor);
+        for (int i = 0; i < SINE_LUT_RESOLUTION; i++) {
+            draw_line(points[i], points[(i + 1) % SINE_LUT_RESOLUTION], color, width, depth, anchor);
         }
     }
 
-    void Renderer::draw_solidbox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth, AnchorPoint anchor) {
+    void Renderer::draw_circle_solid(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float depth, const AnchorPoint anchor) {
+        std::vector<glm::vec2> points(SINE_LUT_RESOLUTION);
+
+        // Generate points
+        for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
+            const size_t sx = i;
+            const size_t cx = (sx + (SINE_LUT_RESOLUTION / 4)) % SINE_LUT_RESOLUTION;
+            points[i] = center + (scale * glm::vec2{ _sine_lut[cx], _sine_lut[sx] });
+        }
+
+        // Generate polygon
+        std::vector<Vertex> verts(SINE_LUT_RESOLUTION);
+        for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
+            verts[i] = Vertex{glm::vec3(points[i], depth), {0, 0}, color};
+        }
+
+        // Draw polygon
+        draw_flat_polygon(verts, anchor);
+    }
+
+    void Renderer::draw_box_solid(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float depth, const AnchorPoint anchor) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -326,15 +346,16 @@ namespace Flan {
         glm::vec2 tr = { br.x, tl.y };
 
         // Create vertices
-        std::vector<Vertex> verts;
-        verts.push_back({ {tl, depth}, {1, 1}, color });
-        verts.push_back({ {tr, depth}, {1, 0}, color });
-        verts.push_back({ {br, depth}, {0, 1}, color });
-        verts.push_back({ {bl, depth}, {0, 0}, color });
+        const std::vector<Vertex> verts({
+            { {tl, depth}, {1, 1}, color },
+            { {tr, depth}, {1, 0}, color },
+            { {br, depth}, {0, 1}, color },
+            { {bl, depth}, {0, 0}, color }
+        });
         draw_flat_polygon(verts, anchor);
     }
 
-    void Renderer::draw_texturebox(const std::string& texture, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth, AnchorPoint anchor) {
+    void Renderer::draw_box_textured(const std::string& texture, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth, AnchorPoint anchor) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -347,7 +368,7 @@ namespace Flan {
         verts.push_back({ {tr, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
         verts.push_back({ {br, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
         verts.push_back({ {bl, depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) });
-        draw_textured_polygon(verts, texture, anchor);
+        draw_polygon_textured(verts, texture, anchor);
     }
 
     void Renderer::draw_flat_polygon(std::vector<Vertex> verts, const AnchorPoint anchor) {
@@ -362,7 +383,7 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_textured_polygon(std::vector<Vertex> verts, const std::string& texture, const AnchorPoint anchor) {
+    void Renderer::draw_polygon_textured(std::vector<Vertex> verts, const std::string& texture, const AnchorPoint anchor) {
         // Upload texture if necessary
         if (_textures.find(texture) == _textures.end()) {
             GLuint handle;
@@ -383,35 +404,45 @@ namespace Flan {
         }
     }
 
-    void Renderer::init_text_lut() {
-        // Only init if it's not yet initializdd
-        if (!_wchar_lut.empty())
-            return;
+    void Renderer::init_luts() {
+        // Init text LUT
+        {
+            // Only init if it's not yet initializdd
+            if (!_wchar_lut.empty())
+                return;
 
-        // These are all just regular old ASCII, do those in bulk
-        const std::wstring lut = L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°ø";
-        for (size_t x = 0; x < lut.size(); x++) {
-            _wchar_lut[lut[x]] = { static_cast<int>(x) };
+            // These are all just regular old ASCII, do those in bulk
+            const std::wstring lut = L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°ø";
+            for (size_t x = 0; x < lut.size(); x++) {
+                _wchar_lut[lut[x]] = { static_cast<int>(x) };
+            }
+
+            // All the accented characters
+            {
+                const std::string ascii_list = "AAAAACEEEEIIIINOOOOOUUUUY"
+                    "aaaaaceeeeiiiinooooouuuuy";
+                const std::wstring accented_list = L"¡¿¬√ƒ«…» ÀÕÃŒœ—”“‘’÷⁄Ÿ€‹›"
+                    "·‡‚„‰ÁÈËÍÎÌÏÓÔÒÛÚÙıˆ˙˘˚¸˝";
+                const std::string accent_markers = "0135460134013450135401340"
+                    "0135460134013450135401340";
+                constexpr int accent_offset = 0x70 - '0';
+
+                for (size_t x = 0; x < ascii_list.size(); x++) {
+                    _wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
+                }
+            }
         }
 
-        // All the accented characters
-        {
-            const std::string ascii_list =      "AAAAACEEEEIIIINOOOOOUUUUY"
-                                                "aaaaaceeeeiiiinooooouuuuy";
-            const std::wstring accented_list = L"¡¿¬√ƒ«…» ÀÕÃŒœ—”“‘’÷⁄Ÿ€‹›"
-                                                "·‡‚„‰ÁÈËÍÎÌÏÓÔÒÛÚÙıˆ˙˘˚¸˝";
-            const std::string accent_markers =  "0135460134013450135401340"
-                                                "0135460134013450135401340";
-            constexpr int accent_offset = 0x70 - '0';
-
-            for (size_t x = 0; x < ascii_list.size(); x++) {
-                _wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
-            }
+        // Init sine LUT
+        const float inv_sine_lut_size = 6.283185307179f / static_cast<float>(_sine_lut.size());
+        for (size_t i = 0; i < _sine_lut.size(); i++) {
+            const float x = static_cast<float>(i) * inv_sine_lut_size;
+            _sine_lut[i] = sinf(x);
         }
     }
 
     void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint anchor) {
-        init_text_lut();
+        init_luts();
         glm::vec2 cur_pos = pos;
         for (auto& c : text) {
             // Handle newline

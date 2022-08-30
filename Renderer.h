@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <map>
 #include <string>
 #include <vector>
@@ -56,9 +57,9 @@ namespace Flan {
         void begin_frame();
         static void gl_error();
         void end_frame() const;
-        void init_text_lut();
+        void init_luts();
         void flip_buffers() const;
-        GLFWwindow* window() const { return _window; }
+        [[nodiscard]] GLFWwindow* window() const { return _window; }
 
         //---Resource Management---
         static GLuint shader_from_file(const std::string& path);
@@ -70,16 +71,17 @@ namespace Flan {
 
         //---Drawing Functions---
         void draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_linebox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_linecircle(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width = 0.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_box_line(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_box_solid(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_box_textured(const std::string& texture, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width = 0.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_polygon_textured(std::vector<Vertex> verts, const std::string& texture, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_circle_line(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_circle_solid(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_flat_polygon(std::vector<Vertex> verts, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_texturebox(const std::string& texture, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width = 0.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_textured_polygon(std::vector<Vertex> verts, const std::string& texture, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint anchor = AnchorPoint::top_left);
     private:
-        glm::vec2 pixels_to_normalized(glm::vec2 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
-        glm::vec3 pixels_to_normalized(glm::vec3 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
+        [[nodiscard]] glm::vec2 pixels_to_normalized(glm::vec2 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
+        [[nodiscard]] glm::vec3 pixels_to_normalized(glm::vec3 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
 
         std::vector<Triangle> _flat_queue;
         std::map<GLuint, std::vector<Triangle>> _textured_queue;
@@ -90,6 +92,8 @@ namespace Flan {
         GLuint _vao{};
         GLuint _vbo{};
         Font _font{};
+        #define SINE_LUT_RESOLUTION 32
+        std::array<float, SINE_LUT_RESOLUTION> _sine_lut{};
         std::map<wchar_t, std::vector<int>> _wchar_lut;
         std::map<std::string, GLuint> _textures;
     };
