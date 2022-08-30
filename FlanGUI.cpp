@@ -32,10 +32,9 @@ int main()
         swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps", smooth_dt * 1000.f, 1.0f/smooth_dt);
         renderer.draw_text(frametime_text, { -1240, 680 }, { 4.f, 4.f }, { 1.0, 0.7, 1, 0 }, 0.0f);
         renderer.draw_linebox({ -400, 400 }, { 400, -400 }, { 1, 0, 0, 1 }, 8);
-        renderer.draw_solidbox({ -350, 350 }, { 350, -350 }, { 0.5f, 0, 0, 1 }, 8);
+        renderer.draw_texturebox("test.png", { -350, 350 }, {350, -350}, {1, 0.5f, 1, 1}, 8);
 
         // Draw bubbles
-
         renderer.draw_linecircle({ 100.f * sinf(time * 0.3f) - 500.f, fmod(time * 1000.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 });
         renderer.draw_linecircle({  75.f * sinf(time * 0.9f) + 200.f, fmod(time * 700.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 });
         renderer.draw_linecircle({ 135.f * sinf(time * 1.2f) - 400.f, fmod(time * 800.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 });

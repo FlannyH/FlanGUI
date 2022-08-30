@@ -48,17 +48,21 @@ namespace Flan {
         void draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void draw_linebox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
         void draw_linecircle(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f);
-        void draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
-        void draw_polygon(std::vector<Vertex> verts);
+        void draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width = 0.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
+        void draw_texturebox(std::string texture, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width = 0.0f, float depth = 0.0f/*, AnchorPoint anchor*/); //TODO: anchorpoint
+        void draw_flat_polygon(std::vector<Vertex> verts);
+        void draw_textured_polygon(std::vector<Vertex> verts, std::string texture);
         void init_text_lut();
         void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth/*, AnchorPoint anchor*/); //TODO: anchorpoint
+        bool load_texture(std::string path, GLuint& handle);
         void* alloc_temp(size_t size, size_t align = 16);
         bool load_font(std::string path);
         GLuint shader_from_file(std::string path);
         GLuint shader_from_string(std::string vert, std::string frag);
         bool shader_part_from_file(const std::string& path, ShaderType type, const GLuint& program);
         bool shader_part_from_string(const std::string& string, ShaderType type, const GLuint& program);
-        std::vector<Triangle> _line_queue;
+        std::vector<Triangle> _flat_queue;
+        std::map<GLuint, std::vector<Triangle>> _textured_queue;
         GLFWwindow* _window = nullptr;
         const glm::ivec2 _res = { 1280, 720 };
         GLuint shader;
@@ -66,5 +70,6 @@ namespace Flan {
         GLuint vbo;
         Font font;
         std::map<wchar_t, std::vector<int>> wchar_lut;
+        std::map<std::string, GLuint> textures;
     };
 }

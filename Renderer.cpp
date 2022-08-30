@@ -1,6 +1,7 @@
 #include "Renderer.h"
 
 #include <fstream>
+#include <utility>
 #include <GL/gl3w.h>
 
 #include "glm/geometric.hpp"
@@ -211,13 +212,49 @@ namespace Flan {
         // Setup render context
         glfwMakeContextCurrent(_window);
         glfwPollEvents();
+
+        // Handle window size changes
+        {
+            // Get window size
+            static int w;
+            static int h;
+            int pw = w;
+            int ph = h;
+            glfwGetWindowSize(_window, &w, &h);
+            if (pw != w || ph != h) {
+                // Calculate aspect ratios
+                const float aspect_org = static_cast<float>(_res.x) / static_cast<float>(_res.y);
+                const float aspect_new = static_cast<float>(w) / static_cast<float>(h);
+
+                // If new window is wider, use height to calculate viewport, otherwise use width
+                int x = 0;
+                int y = 0;
+                int new_w = w;
+                int new_h = h;
+                if (aspect_new > aspect_org) {
+                    const int corrected_w = static_cast<int>(static_cast<float>(new_h) * aspect_org); // corrected_w is expected to be smaller than w
+                    x = (new_w - corrected_w) / 2;
+                    new_w = corrected_w;
+                }
+                else if (aspect_new < aspect_org) {
+                    const int corrected_h = static_cast<int>(static_cast<float>(new_w) / aspect_org); // corrected_h is expected to be smaller than h
+                    y = (new_h - corrected_h) / 2;
+                    new_h = corrected_h;
+                }
+
+                glViewport(x, y, new_w, new_h);
+            }
+        }
+
+
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glFrontFace(GL_CCW);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
 
         // Clear queues
-        _line_queue.clear();
+        _flat_queue.clear();
+        _textured_queue.clear();
 
         // Clear screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -231,12 +268,23 @@ namespace Flan {
     }
 
     void Renderer::end_frame() {
-        // Render line queue
+        // Render flat triangle queue
         glUseProgram(shader);
+        glBindTexture(GL_TEXTURE_2D, font.texture_id);
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * _line_queue.size()), &_line_queue[0], GL_STATIC_DRAW);
-        glDrawArrays(GL_TRIANGLES, 0, _line_queue.size() * 3);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * _flat_queue.size()), &_flat_queue[0], GL_STATIC_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, _flat_queue.size() * 3);
+
+        // Render textured triangle queue
+        for (auto& entry : _textured_queue) {
+            glUseProgram(shader);
+            glBindTexture(GL_TEXTURE_2D, entry.first);
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * entry.second.size()), &entry.second[0], GL_STATIC_DRAW);
+            glDrawArrays(GL_TRIANGLES, 0, entry.second.size() * 3);
+        }
         flip_buffers();
     }
 
@@ -265,8 +313,8 @@ namespace Flan {
         v2.color = color;
         v3.color = color;
         v4.color = color;
-        _line_queue.push_back({v1, v3, v2});
-        _line_queue.push_back({v1, v4, v3});
+        _flat_queue.push_back({v1, v3, v2});
+        _flat_queue.push_back({v1, v4, v3});
     }
 
     void Renderer::draw_linebox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth) {
@@ -301,7 +349,7 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width, float depth) {
+    void Renderer::draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width, float depth) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -314,10 +362,26 @@ namespace Flan {
         verts.push_back({ {tr, depth}, {1, 0}, color });
         verts.push_back({ {br, depth}, {0, 1}, color });
         verts.push_back({ {bl, depth}, {0, 0}, color });
-        draw_polygon(verts);
+        draw_flat_polygon(verts);
     }
 
-    void Renderer::draw_polygon(std::vector<Vertex> verts) {
+    void Renderer::draw_texturebox(std::string texture, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width, float depth) {
+        // Derive corners of the box
+        glm::vec2 tl = top_left;
+        glm::vec2 br = bottom_right;
+        glm::vec2 bl = { tl.x, br.y };
+        glm::vec2 tr = { br.x, tl.y };
+
+        // Create vertices
+        std::vector<Vertex> verts;
+        verts.push_back({ {tl, depth}, {0, 0}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {tr, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {br, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {bl, depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) });
+        draw_textured_polygon(verts, std::move(texture));
+    }
+
+    void Renderer::draw_flat_polygon(std::vector<Vertex> verts) {
         // Scale to screen
         for (auto& vert : verts) {
             vert.pos /= glm::vec3(_res, 1.0f);
@@ -325,7 +389,28 @@ namespace Flan {
 
         // Add to render queue
         for (auto i = 0; i < verts.size() - 2; i++) {
-            _line_queue.push_back({ verts[0], verts[i + 2], verts[i + 1] });
+            _flat_queue.push_back({ verts[0], verts[i + 2], verts[i + 1] });
+        }
+    }
+
+    void Renderer::draw_textured_polygon(std::vector<Vertex> verts, std::string texture) {
+        // Upload texture if necessary
+        if (textures.find(texture) == textures.end()) {
+            GLuint handle;
+            if (load_texture(texture, handle))
+                textures[texture] = handle;
+            else
+                printf("ERROR: Unable to find texture at path '%s'\n", texture.c_str());
+        }
+
+        // Scale to screen
+        for (auto& vert : verts) {
+            vert.pos /= glm::vec3(_res, 1.0f);
+        }
+
+        // Add to render queue
+        for (auto i = 0; i < verts.size() - 2; i++) {
+            _textured_queue[textures[texture]].push_back({verts[0], verts[i + 2], verts[i + 1]});
         }
     }
 
@@ -405,13 +490,37 @@ namespace Flan {
                 };
 
                 // Create triangles and add to queue
-                _line_queue.push_back({ v1, v3, v2 });
-                _line_queue.push_back({ v1, v4, v3 });
+                _flat_queue.push_back({ v1, v3, v2 });
+                _flat_queue.push_back({ v1, v4, v3 });
             }
 
             // Move cursor
             cur_pos.x += font.widths[wentry[0]] * scale.x;
         }
+    }
+
+    bool Renderer::load_texture(std::string path, GLuint& handle) {
+        // Load image
+        int w, h, c;
+        uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
+
+        // Did it load correctly?
+        if (!data || !w || !h) {
+            printf("ERROR: Failed to load texture '%s'! STBI returned the following error: %s", path.c_str(), stbi_failure_reason());
+            return false;
+        }
+
+        // Upload texture to GPU
+        glGenTextures(1, &handle);
+        glBindTexture(GL_TEXTURE_2D, handle);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        return true;
     }
 
     bool Renderer::load_font(std::string path) {
@@ -471,6 +580,7 @@ namespace Flan {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Create font object
         std::vector<int> widths_vector(128);
