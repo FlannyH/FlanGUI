@@ -21,7 +21,7 @@ int main()
     renderer.init();
     float smooth_dt = 0.0f;
     float time = 0.0f;
-    while (!glfwWindowShouldClose(renderer._window)) {
+    while (!glfwWindowShouldClose(renderer.window())) {
         // Draw
         renderer.begin_frame();
         renderer.draw_linecircle({ 0,0 }, { 600, 600 }, { 0,1,0,1 }, 4, 0.1f);

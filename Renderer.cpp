@@ -1,3 +1,4 @@
+// ReSharper disable CppClangTidyPerformanceNoIntToPtr
 #include "Renderer.h"
 
 #include <fstream>
@@ -173,9 +174,8 @@ namespace Flan {
         glfwMakeContextCurrent(window);
         if (gl3wInit() != GL3W_OK) {
             printf("OpenGL error.\n");
-            exit(1);
+            std::exit(1);
         }
-        printf("INFO: GL_VERSION returned %s\n", (char*)glGetString(GL_VERSION));
         glDebugMessageCallback(debug_callback_func, nullptr);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         init(window);
@@ -186,16 +186,16 @@ namespace Flan {
         _window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glfwSwapInterval(0);
-        shader = shader_from_file("Shaders/sprite");
+        _shader = shader_from_file("Shaders/sprite");
         load_font("font.png");
         //shader = shader_from_string(vert_shader, frag_shader);
-        glUseProgram(shader);
+        glUseProgram(_shader);
 
         // Create vertex buffer
-        glGenVertexArrays(1, &vao);
-        glGenBuffers(1, &vbo);
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glGenVertexArrays(1, &_vao);
+        glGenBuffers(1, &_vbo);
+        glBindVertexArray(_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 
         // Setup vertex array
         glVertexAttribPointer(0, sizeof(Vertex::pos  ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, pos  .x)));
@@ -218,8 +218,8 @@ namespace Flan {
             // Get window size
             static int w;
             static int h;
-            int pw = w;
-            int ph = h;
+            const int pw = w;
+            const int ph = h;
             glfwGetWindowSize(_window, &w, &h);
             if (pw != w || ph != h) {
                 // Calculate aspect ratios
@@ -261,39 +261,39 @@ namespace Flan {
     }
 
     void Renderer::gl_error() {
-        auto error = glGetError();
+        const auto error = glGetError();
         if (error) {
             printf("ERROR: %i\n", error);
         }
     }
 
-    void Renderer::end_frame() {
+    void Renderer::end_frame() const {
         // Render flat triangle queue
-        glUseProgram(shader);
-        glBindTexture(GL_TEXTURE_2D, font.texture_id);
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * _flat_queue.size()), &_flat_queue[0], GL_STATIC_DRAW);
-        glDrawArrays(GL_TRIANGLES, 0, _flat_queue.size() * 3);
+        glUseProgram(_shader);
+        glBindTexture(GL_TEXTURE_2D, _font.texture_id);
+        glBindVertexArray(_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * _flat_queue.size()), _flat_queue.data(), GL_STATIC_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(_flat_queue.size() * 3));
 
         // Render textured triangle queue
         for (auto& entry : _textured_queue) {
-            glUseProgram(shader);
+            glUseProgram(_shader);
             glBindTexture(GL_TEXTURE_2D, entry.first);
-            glBindVertexArray(vao);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * entry.second.size()), &entry.second[0], GL_STATIC_DRAW);
-            glDrawArrays(GL_TRIANGLES, 0, entry.second.size() * 3);
+            glBindVertexArray(_vao);
+            glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+            glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * entry.second.size()), entry.second.data(), GL_STATIC_DRAW);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(entry.second.size()) * 3);
         }
         flip_buffers();
     }
 
-    void Renderer::flip_buffers() {
+    void Renderer::flip_buffers() const {
         glfwSwapBuffers(_window);
     }
 
     void Renderer::draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width, float depth) {
-        Vertex v1, v2, v3, v4;
+        Vertex v1{}, v2{}, v3{}, v4{};
 
         // Calculate normal
         glm::vec2 normal = (b - a);
@@ -319,27 +319,27 @@ namespace Flan {
 
     void Renderer::draw_linebox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth) {
         // Derive corners of the box
-        glm::vec2 tl = top_left;
-        glm::vec2 br = bottom_right;
-        glm::vec2 bl = { tl.x, br.y };
-        glm::vec2 tr = { br.x, tl.y };
+        const glm::vec2 tl = top_left;
+        const glm::vec2 br = bottom_right;
+        const glm::vec2 bl = { tl.x, br.y };
+        const glm::vec2 tr = { br.x, tl.y };
 
         // Draw the lines
-        glm::vec2 _x = { width, 0 };
-        glm::vec2 _y = { _x.y, _x.x };
-        draw_line(tl - _x, tr + _x, color, width, depth);
-        draw_line(tr + _y, br - _y, color, width, depth);
-        draw_line(br + _x, bl - _x, color, width, depth);
-        draw_line(bl - _y, tl + _y, color, width, depth);
+        const glm::vec2 x = { width, 0 };
+        const glm::vec2 y = { x.y, x.x };
+        draw_line(tl - x, tr + x, color, width, depth);
+        draw_line(tr + y, br - y, color, width, depth);
+        draw_line(br + x, bl - x, color, width, depth);
+        draw_line(bl - y, tl + y, color, width, depth);
     }
 
-    void Renderer::draw_linecircle(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width, float depth) {
+    void Renderer::draw_linecircle(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth) {
         constexpr int resolution = 32;
         std::vector<glm::vec2> points(resolution);
 
         // Generate points
         for (int i = 0; i < resolution; i++) {
-            float t = (float)i / (float)resolution * 6.28318530718f;
+            const float t = static_cast<float>(i) / static_cast<float>(resolution) * 6.28318530718f;
             points[i] = center + (scale * glm::vec2{ cosf(t), sinf(t) });
         }
 
@@ -349,7 +349,7 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_solidbox(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width, float depth) {
+    void Renderer::draw_solidbox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -365,7 +365,7 @@ namespace Flan {
         draw_flat_polygon(verts);
     }
 
-    void Renderer::draw_texturebox(std::string texture, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float outline_width, float depth) {
+    void Renderer::draw_texturebox(const std::string& texture, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -378,7 +378,7 @@ namespace Flan {
         verts.push_back({ {tr, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
         verts.push_back({ {br, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
         verts.push_back({ {bl, depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) });
-        draw_textured_polygon(verts, std::move(texture));
+        draw_textured_polygon(verts, texture);
     }
 
     void Renderer::draw_flat_polygon(std::vector<Vertex> verts) {
@@ -388,17 +388,17 @@ namespace Flan {
         }
 
         // Add to render queue
-        for (auto i = 0; i < verts.size() - 2; i++) {
+        for (size_t i = 0; i < verts.size() - 2; i++) {
             _flat_queue.push_back({ verts[0], verts[i + 2], verts[i + 1] });
         }
     }
 
-    void Renderer::draw_textured_polygon(std::vector<Vertex> verts, std::string texture) {
+    void Renderer::draw_textured_polygon(std::vector<Vertex> verts, const std::string& texture) {
         // Upload texture if necessary
-        if (textures.find(texture) == textures.end()) {
+        if (_textures.find(texture) == _textures.end()) {
             GLuint handle;
             if (load_texture(texture, handle))
-                textures[texture] = handle;
+                _textures[texture] = handle;
             else
                 printf("ERROR: Unable to find texture at path '%s'\n", texture.c_str());
         }
@@ -409,20 +409,20 @@ namespace Flan {
         }
 
         // Add to render queue
-        for (auto i = 0; i < verts.size() - 2; i++) {
-            _textured_queue[textures[texture]].push_back({verts[0], verts[i + 2], verts[i + 1]});
+        for (size_t i = 0; i < verts.size() - 2; i++) {
+            _textured_queue[_textures[texture]].push_back({verts[0], verts[i + 2], verts[i + 1]});
         }
     }
 
     void Renderer::init_text_lut() {
         // Only init if it's not yet initializdd
-        if (!wchar_lut.empty())
+        if (!_wchar_lut.empty())
             return;
 
         // These are all just regular old ASCII, do those in bulk
-        std::wstring lut = L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¡¿";
-        for (int x = 0; x < lut.size(); x++) {
-            wchar_lut[lut[x]] = { x };
+        const std::wstring lut = L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¡¿";
+        for (size_t x = 0; x < lut.size(); x++) {
+            _wchar_lut[lut[x]] = { static_cast<int>(x) };
         }
 
         // All the accented characters
@@ -433,10 +433,10 @@ namespace Flan {
                                                 "áàâãäçéèêëíìîïñóòôõöúùûüý";
             const std::string accent_markers =  "0135460134013450135401340"
                                                 "0135460134013450135401340";
-            const int accent_offset = 0x70 - '0';
+            constexpr int accent_offset = 0x70 - '0';
 
-            for (int x = 0; x < ascii_list.size(); x++) {
-                wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
+            for (size_t x = 0; x < ascii_list.size(); x++) {
+                _wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
             }
         }
     }
@@ -448,7 +448,7 @@ namespace Flan {
             // Handle newline
             if (c == '\n') {
                 cur_pos.x = pos.x;
-                cur_pos.y -= (float)font.grid_h * scale.y;
+                cur_pos.y -= static_cast<float>(_font.grid_h) * scale.y;
                 continue;
             }
             if (c == '\r') {
@@ -457,17 +457,15 @@ namespace Flan {
             }
 
             // Create verts
-            int last_character = 0;
-            //for (int wc : wchar_lut[static_cast<wchar_t>(c)]) {
-            auto& wentry = wchar_lut[static_cast<wchar_t>(c)];
-            for (int i = 0; i < wentry.size(); i++) {
+            auto& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+            for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc = wentry[i];
                 glm::vec4 color_noalpha = color * glm::vec4(1, 1, 1, 0);
                 glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0)) / glm::vec3(_res, 1.0f);
                 glm::vec2 off_uv = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);
                 glm::vec2 glyph_size = glm::vec2(1.f / 16.f, 1.f / 8.f);
-                float grid_w_2 = static_cast<float>(font.grid_w) / 2.f / _res.x * scale.x;
-                float grid_h_2 = static_cast<float>(font.grid_h) / 2.f / _res.y * scale.y;
+                float grid_w_2 = static_cast<float>(_font.grid_w) / 2.f / static_cast<float>(_res.x) * scale.x;
+                float grid_h_2 = static_cast<float>(_font.grid_h) / 2.f / static_cast<float>(_res.y) * scale.y;
                 Vertex v1 = { // top left
                     pos_depth - glm::vec3(-grid_w_2, +grid_h_2, 0.0f),
                     glm::vec2(1, 1) * glyph_size + off_uv,
@@ -495,11 +493,11 @@ namespace Flan {
             }
 
             // Move cursor
-            cur_pos.x += font.widths[wentry[0]] * scale.x;
+            cur_pos.x += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
         }
     }
 
-    bool Renderer::load_texture(std::string path, GLuint& handle) {
+    bool Renderer::load_texture(const std::string& path, GLuint& handle) {
         // Load image
         int w, h, c;
         uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
@@ -520,10 +518,13 @@ namespace Flan {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glBindTexture(GL_TEXTURE_2D, 0);
+
+        // Clean up
+        STBI_FREE(data);
         return true;
     }
 
-    bool Renderer::load_font(std::string path) {
+    bool Renderer::load_font(const std::string& path) {
         // Load image
         int w, h, c;
         uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
@@ -546,9 +547,9 @@ namespace Flan {
                 int width = glyph_size.x;
                 for (int glyph_x = 0; glyph_x < glyph_size.x; glyph_x++) {
                     // Get pixel
-                    int sample_x = (x * glyph_size.x) + glyph_x;
-                    int sample_y = y * glyph_size.y;
-                    uint32_t pixel = (reinterpret_cast<uint32_t*>(data))[sample_y * w + sample_x];
+                    const int sample_x = (x * glyph_size.x) + glyph_x;
+                    const int sample_y = y * glyph_size.y;
+                    const uint32_t pixel = (reinterpret_cast<uint32_t*>(data))[sample_y * w + sample_x];
 
                     // If red (127, 0, 0), the current x-coordinate is the glyph width
                     if ((pixel & 0x00FFFFFF) == 0x00007F) {
@@ -584,8 +585,8 @@ namespace Flan {
 
         // Create font object
         std::vector<int> widths_vector(128);
-        memcpy_s(widths_vector.data(), widths_vector.size() * 4, widths, 128 * 4);
-        font = Font {
+        memcpy_s(widths_vector.data(), widths_vector.size() * 4, widths, 128ull * 4ull);
+        _font = Font {
             texture_gpu,
             static_cast<uint16_t>(glyph_size.x),
             static_cast<uint16_t>(glyph_size.y),
@@ -595,12 +596,12 @@ namespace Flan {
         return true;
     }
 
-    GLuint Renderer::shader_from_file(std::string path) {
+    GLuint Renderer::shader_from_file(const std::string& path) {
         const GLuint shader_gpu = glCreateProgram();
 
-        bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
-        bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
-        bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
+        const bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
+        const bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
+        const bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
         shader_part_from_file(path + ".geom", ShaderType::geometry, shader_gpu);
 
         if (
@@ -621,7 +622,7 @@ namespace Flan {
         return shader_gpu;
     }
 
-    GLuint Renderer::shader_from_string(std::string vert, std::string frag) {
+    GLuint Renderer::shader_from_string(const std::string& vert, const std::string& frag) {
         const GLuint shader_gpu = glCreateProgram();
         shader_part_from_string(vert, ShaderType::vertex, shader_gpu);
         shader_part_from_string(frag, ShaderType::pixel, shader_gpu);
@@ -658,7 +659,7 @@ namespace Flan {
             GL_COMPUTE_SHADER,
         };
 
-        //Read shader source file
+        // Read shader source file
         int shader_size = 0;
         char* shader_data = nullptr;
         read_file(path, shader_size, shader_data);
@@ -667,16 +668,16 @@ namespace Flan {
             return false;
         }
         
-        //Create shader on GPU
+        // Create shader on GPU
         const GLuint type_to_create = shader_types[static_cast<int>(type)];
         const GLuint shader = glCreateShader(type_to_create);
 
-        //Compile shader source
+        // Compile shader source
         const char* data = shader_data;
         glShaderSource(shader, 1, &data, &shader_size);
         glCompileShader(shader);
 
-        //Error checking
+        // Error checking
         GLint result = GL_FALSE;
         int log_length;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
@@ -689,7 +690,7 @@ namespace Flan {
             return false;
         }
 
-        //Attach to program
+        // Attach to program
         glAttachShader(program, shader);
 
         return true;
@@ -704,24 +705,24 @@ namespace Flan {
             GL_COMPUTE_SHADER,
         };
 
-        //Read shader source file
-        int shader_size = string.size();
+        // Read shader source file
+        const int shader_size = static_cast<int>(string.size());
         const char* shader_data = string.c_str();
 
         if (shader_data == nullptr) {
             return false;
         }
 
-        //Create shader on GPU
+        // Create shader on GPU
         const GLuint type_to_create = shader_types[static_cast<int>(type)];
         const GLuint shader = glCreateShader(type_to_create);
 
-        //Compile shader source
+        // Compile shader source
         const char* data = shader_data;
         glShaderSource(shader, 1, &data, &shader_size);
         glCompileShader(shader);
 
-        //Error checking
+        // Error checking
         GLint result = GL_FALSE;
         int log_length;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
@@ -734,7 +735,7 @@ namespace Flan {
             return false;
         }
 
-        //Attach to program
+        // Attach to program
         glAttachShader(program, shader);
 
         return true;
