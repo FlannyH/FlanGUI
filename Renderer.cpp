@@ -212,45 +212,14 @@ namespace Flan {
         // Setup render context
         glfwMakeContextCurrent(_window);
         glfwPollEvents();
-
-        // Handle window size changes
-        {
-            // Get window size
-            static int w;
-            static int h;
-            const int pw = w;
-            const int ph = h;
-            glfwGetWindowSize(_window, &w, &h);
-            if (pw != w || ph != h) {
-                // Calculate aspect ratios
-                const float aspect_org = static_cast<float>(_res.x) / static_cast<float>(_res.y);
-                const float aspect_new = static_cast<float>(w) / static_cast<float>(h);
-
-                // If new window is wider, use height to calculate viewport, otherwise use width
-                int x = 0;
-                int y = 0;
-                int new_w = w;
-                int new_h = h;
-                if (aspect_new > aspect_org) {
-                    const int corrected_w = static_cast<int>(static_cast<float>(new_h) * aspect_org); // corrected_w is expected to be smaller than w
-                    x = (new_w - corrected_w) / 2;
-                    new_w = corrected_w;
-                }
-                else if (aspect_new < aspect_org) {
-                    const int corrected_h = static_cast<int>(static_cast<float>(new_w) / aspect_org); // corrected_h is expected to be smaller than h
-                    y = (new_h - corrected_h) / 2;
-                    new_h = corrected_h;
-                }
-
-                glViewport(x, y, new_w, new_h);
-            }
-        }
-
-
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glFrontFace(GL_CCW);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
+
+        // Handle window size changes
+        glfwGetWindowSize(_window, &_res.x, &_res.y);
+        glViewport(0, 0, _res.x, _res.y);
 
         // Clear queues
         _flat_queue.clear();
@@ -292,7 +261,7 @@ namespace Flan {
         glfwSwapBuffers(_window);
     }
 
-    void Renderer::draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width, float depth) {
+    void Renderer::draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width, float depth, AnchorPoint anchor) {
         Vertex v1{}, v2{}, v3{}, v4{};
 
         // Calculate normal
@@ -301,10 +270,10 @@ namespace Flan {
         normal = glm::normalize(normal) * width;
 
         // Create triangles
-        v1.pos = glm::vec3(a - normal, depth) / glm::vec3(_res, 1.0f) ;
-        v2.pos = glm::vec3(b - normal, depth) / glm::vec3(_res, 1.0f) ;
-        v3.pos = glm::vec3(b + normal, depth) / glm::vec3(_res, 1.0f) ;
-        v4.pos = glm::vec3(a + normal, depth) / glm::vec3(_res, 1.0f) ;
+        v1.pos = glm::vec3(pixels_to_normalized(a - normal, anchor), depth);
+        v2.pos = glm::vec3(pixels_to_normalized(b - normal, anchor), depth);
+        v3.pos = glm::vec3(pixels_to_normalized(b + normal, anchor), depth);
+        v4.pos = glm::vec3(pixels_to_normalized(a + normal, anchor), depth);
         v1.tc = { 0, 0 };
         v2.tc = { 0, 0 };
         v3.tc = { 0, 0 };
@@ -317,7 +286,7 @@ namespace Flan {
         _flat_queue.push_back({v1, v4, v3});
     }
 
-    void Renderer::draw_linebox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth) {
+    void Renderer::draw_linebox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
         // Derive corners of the box
         const glm::vec2 tl = top_left;
         const glm::vec2 br = bottom_right;
@@ -327,13 +296,13 @@ namespace Flan {
         // Draw the lines
         const glm::vec2 x = { width, 0 };
         const glm::vec2 y = { x.y, x.x };
-        draw_line(tl - x, tr + x, color, width, depth);
-        draw_line(tr + y, br - y, color, width, depth);
-        draw_line(br + x, bl - x, color, width, depth);
-        draw_line(bl - y, tl + y, color, width, depth);
+        draw_line(tl - x, tr + x, color, width, depth, anchor);
+        draw_line(tr + y, br - y, color, width, depth, anchor);
+        draw_line(br + x, bl - x, color, width, depth, anchor);
+        draw_line(bl - y, tl + y, color, width, depth, anchor);
     }
 
-    void Renderer::draw_linecircle(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth) {
+    void Renderer::draw_linecircle(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
         constexpr int resolution = 32;
         std::vector<glm::vec2> points(resolution);
 
@@ -345,11 +314,11 @@ namespace Flan {
 
         // Draw lines
         for (int i = 0; i < resolution; i++) {
-            draw_line(points[i], points[(i + 1) % resolution], color, width, depth);
+            draw_line(points[i], points[(i + 1) % resolution], color, width, depth, anchor);
         }
     }
 
-    void Renderer::draw_solidbox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth) {
+    void Renderer::draw_solidbox(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth, AnchorPoint anchor) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -362,10 +331,10 @@ namespace Flan {
         verts.push_back({ {tr, depth}, {1, 0}, color });
         verts.push_back({ {br, depth}, {0, 1}, color });
         verts.push_back({ {bl, depth}, {0, 0}, color });
-        draw_flat_polygon(verts);
+        draw_flat_polygon(verts, anchor);
     }
 
-    void Renderer::draw_texturebox(const std::string& texture, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth) {
+    void Renderer::draw_texturebox(const std::string& texture, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float outline_width, float depth, AnchorPoint anchor) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -378,13 +347,13 @@ namespace Flan {
         verts.push_back({ {tr, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
         verts.push_back({ {br, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
         verts.push_back({ {bl, depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) });
-        draw_textured_polygon(verts, texture);
+        draw_textured_polygon(verts, texture, anchor);
     }
 
-    void Renderer::draw_flat_polygon(std::vector<Vertex> verts) {
+    void Renderer::draw_flat_polygon(std::vector<Vertex> verts, const AnchorPoint anchor) {
         // Scale to screen
         for (auto& vert : verts) {
-            vert.pos /= glm::vec3(_res, 1.0f);
+            vert.pos = pixels_to_normalized(vert.pos, anchor);
         }
 
         // Add to render queue
@@ -393,7 +362,7 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_textured_polygon(std::vector<Vertex> verts, const std::string& texture) {
+    void Renderer::draw_textured_polygon(std::vector<Vertex> verts, const std::string& texture, const AnchorPoint anchor) {
         // Upload texture if necessary
         if (_textures.find(texture) == _textures.end()) {
             GLuint handle;
@@ -405,7 +374,7 @@ namespace Flan {
 
         // Scale to screen
         for (auto& vert : verts) {
-            vert.pos /= glm::vec3(_res, 1.0f);
+            vert.pos = pixels_to_normalized(vert.pos, anchor);
         }
 
         // Add to render queue
@@ -441,7 +410,7 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth) {
+    void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint anchor) {
         init_text_lut();
         glm::vec2 cur_pos = pos;
         for (auto& c : text) {
@@ -461,28 +430,28 @@ namespace Flan {
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc = wentry[i];
                 glm::vec4 color_noalpha = color * glm::vec4(1, 1, 1, 0);
-                glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0)) / glm::vec3(_res, 1.0f);
+                glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0));
                 glm::vec2 off_uv = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);
                 glm::vec2 glyph_size = glm::vec2(1.f / 16.f, 1.f / 8.f);
-                float grid_w_2 = static_cast<float>(_font.grid_w) / 2.f / static_cast<float>(_res.x) * scale.x;
-                float grid_h_2 = static_cast<float>(_font.grid_h) / 2.f / static_cast<float>(_res.y) * scale.y;
+                float grid_w_2 = static_cast<float>(_font.grid_w) / 2.f * scale.x;
+                float grid_h_2 = static_cast<float>(_font.grid_h) / 2.f * scale.y;
                 Vertex v1 = { // top left
-                    pos_depth - glm::vec3(-grid_w_2, +grid_h_2, 0.0f),
+                    pixels_to_normalized(pos_depth - glm::vec3(-grid_w_2, +grid_h_2, 0.0f), anchor),
                     glm::vec2(1, 1) * glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v2 = { // top right
-                    pos_depth - glm::vec3(+grid_w_2, +grid_h_2, 0.0f),
+                    pixels_to_normalized(pos_depth - glm::vec3(+grid_w_2, +grid_h_2, 0.0f), anchor),
                     glm::vec2(0, 1)* glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v3 = { // bottom right
-                    pos_depth - glm::vec3(+grid_w_2, -grid_h_2, 0.0f),
+                    pixels_to_normalized(pos_depth - glm::vec3(+grid_w_2, -grid_h_2, 0.0f), anchor),
                     glm::vec2(0, 0) * glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v4 = { // bottom left
-                    pos_depth - glm::vec3(-grid_w_2, -grid_h_2, 0.0f),
+                    pixels_to_normalized(pos_depth - glm::vec3(-grid_w_2, -grid_h_2, 0.0f), anchor),
                     glm::vec2(1, 0) * glyph_size + off_uv,
                     color_noalpha
                 };
@@ -495,6 +464,40 @@ namespace Flan {
             // Move cursor
             cur_pos.x += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
         }
+    }
+
+    glm::vec2 Renderer::pixels_to_normalized(const glm::vec2 pos, AnchorPoint anchor) const {
+        const glm::vec2 anchor_offsets[] = {
+            { 0,  0}, // center
+            {-1,  1}, // top left
+            { 0,  1}, // top
+            { 1,  1}, // top right
+            { 1,  0}, // right
+            { 1, -1}, // bottom right
+            { 0, -1}, // bottom
+            {-1, -1}, // bottom left
+            {-1,  0}, // left
+        };
+
+        // Handle anchor and scale to window
+        return (pos / glm::vec2(_res)) + anchor_offsets[static_cast<size_t>(anchor)];
+    }
+
+    glm::vec3 Renderer::pixels_to_normalized(const glm::vec3 pos, AnchorPoint anchor) const {
+        const glm::vec3 anchor_offsets[] = {
+            { 0,  0, 0 }, // center
+            {-1,  1, 0 }, // top left
+            { 0,  1, 0 }, // top
+            { 1,  1, 0 }, // top right
+            { 1,  0, 0 }, // right
+            { 1, -1, 0 }, // bottom right
+            { 0, -1, 0 }, // bottom
+            {-1, -1, 0 }, // bottom left
+            {-1,  0, 0 }, // left
+        };
+
+        // Handle anchor and scale to window
+        return (pos / glm::vec3(_res, 1)) + anchor_offsets[static_cast<size_t>(anchor)];
     }
 
     bool Renderer::load_texture(const std::string& path, GLuint& handle) {
