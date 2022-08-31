@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ComponentSystem.cpp" />
     <ClCompile Include="External\source\glm\glm.cpp" />
     <ClCompile Include="External\source\GL\gl3w.c" />
     <ClCompile Include="External\source\imgui\imgui.cpp" />
@@ -156,6 +157,7 @@
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ComponentSystem.h" />
     <ClInclude Include="External\include\entt\entt.hpp" />
     <ClInclude Include="External\include\glfw\glfw3.h" />
     <ClInclude Include="External\include\glfw\glfw3native.h" />
@@ -457,6 +459,7 @@
     <ClInclude Include="External\include\stb\stb_image.h" />
     <ClInclude Include="External\include\stb\stb_image_write.h" />
     <ClInclude Include="External\include\tinygltf\tiny_gltf.h" />
+    <ClInclude Include="ComponentsGUI.h" />
     <ClInclude Include="Renderer.h" />
   </ItemGroup>
   <ItemGroup>

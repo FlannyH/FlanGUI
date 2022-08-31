@@ -48,6 +48,9 @@
     <ClCompile Include="External\source\imgui\imgui_widgets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ComponentSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h">
@@ -954,6 +957,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="External\include\tinygltf\tiny_gltf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentsGUI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
