@@ -10,10 +10,14 @@ namespace Flan {
 
         Pool() = default;
 
-        explicit Pool(const size_t comp_size_) {
+        void init(size_t comp_size_) {
             comp_size = comp_size_;
-            pool = new uint8_t[MAX_ENTITIES * comp_size];
-            printf("create pool: %p\n", pool);
+            free(pool);
+            pool = static_cast<uint8_t*>(malloc(MAX_ENTITIES * comp_size));
+        }
+
+        explicit Pool(const size_t comp_size_) {
+            init(comp_size_);
         }
 
         [[nodiscard]] void* get(const size_t index) const {
@@ -35,7 +39,7 @@ namespace Flan {
     class Scene {
     public:
         EntityID new_entity();
-        // Add a component from an entity, initializing the component with the values specified in the argument
+        // Add a component from an entity, initializing the component by copying an existing object
         template <typename T>
         void add_component(EntityID entity, T comp);
 
@@ -55,7 +59,7 @@ namespace Flan {
         template <typename t1, typename t2 = void, typename t3 = void, typename t4 = void>
         std::vector<EntityID> view();
     private:
-        std::vector<Pool> _pools;
+        std::vector<Pool> _pools = std::vector<Pool>(64);
         std::vector<uint64_t> _entities;
     };
 
@@ -66,16 +70,21 @@ namespace Flan {
     void Scene::add_component(EntityID entity, T comp) {
         auto comp_id = get_comp_id<T>();
         // Set the component flag for this component
-        _entities[entity] |= 1 << comp_id;
+        _entities[entity] |= 1ull << comp_id;
 
         // If the pool for this component does not exist, create one
         if (comp_id >= _pools.size()) {
             _pools.resize(comp_id + 1);
-            _pools[comp_id] = { sizeof(T) };
+            _pools[comp_id].init(sizeof(T));
+        }
+
+        // If the pool is null, initialize it
+        if (_pools[comp_id].pool == nullptr) {
+            _pools[comp_id].init(sizeof(T));
         }
 
         // Initialize the component
-        memcpy_s(_pools[comp_id].get(entity), sizeof(T), &comp, sizeof(T));
+        new (_pools[comp_id].get(entity)) T(comp);
     }
 
     template <typename T>

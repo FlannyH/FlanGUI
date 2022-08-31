@@ -60,6 +60,7 @@ namespace Flan {
         void init_luts();
         void flip_buffers() const;
         [[nodiscard]] GLFWwindow* window() const { return _window; }
+        glm::ivec2 resolution() const { return _res; }
 
         //---Resource Management---
         static GLuint shader_from_file(const std::string& path);

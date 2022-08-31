@@ -29,15 +29,15 @@ int main()
     Flan::Input input(renderer.window());
 
     // Create button
-    auto botton1 = Flan::button(scene, { 0, -100 }, { 100, -200 }, [&]()
+    auto botton1 = Flan::button(scene, { 0, -100 }, { 100, -200 }, []()
         {
             printf("hi1!\n");
         }, 0.0f, Flan::AnchorPoint::center);
-    auto botton2 = Flan::button(scene, { 0, 0 }, { 100, -100 }, [&]()
+    auto botton2 = Flan::button(scene, { 0, 0 }, { 100, -100 }, []()
         {
             printf("hi2!\n");
         }, 0.0f, Flan::AnchorPoint::center);
-    auto botton3 = Flan::button(scene, { 0, 100 }, { 100, 0 }, [&]()
+    auto botton3 = Flan::button(scene, { 0, 100 }, { 100, 0 }, []()
         {
             printf("hi3!\n");
         }, 0.0f, Flan::AnchorPoint::center);
@@ -49,7 +49,7 @@ int main()
         // Draw
         renderer.begin_frame();
         Flan::update_entities(scene, renderer, input);
-        renderer.draw_circle_line({ 0,0 }, { 600, 600 }, { 0,1,0,1 }, 4, 0.1f, Flan::AnchorPoint::center);
+        renderer.draw_circle_line({ 0,0 }, { 300, 300 }, { 0,1,0,1 }, 4, 0.1f, Flan::AnchorPoint::center);
         //renderer.draw_circle_solid({ 0,0 }, { 580, 580 }, { 0,0.2,0,1 }, 0.1f, Flan::AnchorPoint::center);
         wchar_t frametime_text[256];
         const float dt = calculate_delta_time();
@@ -69,16 +69,10 @@ int main()
             input.mouse_up(0), input.mouse_up(1), input.mouse_up(2),
             input.mouse_wheel()
         );
-        renderer.draw_text(frametime_text, { 16, -32 }, { 4.f, 4.f }, { 1.0, 0.7, 1, 0 }, 0.0f);
+        renderer.draw_text(frametime_text, { 16, 32 }, { 2.f, 2.f }, { 1.0, 0.7, 1, 0 }, 0.0f);
         //renderer.draw_box_line({ -400, 400 }, { 400, -400 }, { 1, 0, 0, 1 }, 8, 0.0f, Flan::AnchorPoint::center);
         //renderer.draw_box_solid({ -380, 380 }, { 380, -380 }, { 0.1, 0, 0, 1 }, 0.1f, Flan::AnchorPoint::center);
         //renderer.draw_box_textured("test.png", { -350, 350 }, {350, -350}, {1, 0.5f, 1, 1}, 8, 0.0f, Flan::AnchorPoint::center);
-
-        // Draw bubbles
-        renderer.draw_circle_line({ 100.f * sinf(time * 0.3f) - 500.f, fmod(time * 1000.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_circle_line({  75.f * sinf(time * 0.9f) + 200.f, fmod(time * 700.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_circle_line({ 135.f * sinf(time * 1.2f) - 400.f, fmod(time * 800.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
-        renderer.draw_circle_line({  54.f * sinf(time * 0.5f) + 300.f, fmod(time * 1200.f, 2000.f) - 1000.f }, { 50, 50 }, { 1, 1, 1, 1 }, 1.0f, 0.0f, Flan::AnchorPoint::center);
 
         renderer.end_frame();
         input.update(renderer.window());

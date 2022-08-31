@@ -364,10 +364,10 @@ namespace Flan {
 
         // Create vertices
         std::vector<Vertex> verts;
-        verts.push_back({ {tl, depth}, {0, 0}, color * glm::vec4(1, 1, 1, 0) });
-        verts.push_back({ {tr, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
-        verts.push_back({ {br, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
-        verts.push_back({ {bl, depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {tl, depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {tr, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {br, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
+        verts.push_back({ {bl, depth}, {0, 0}, color * glm::vec4(1, 1, 1, 0) });
         draw_polygon_textured(verts, texture, anchor);
     }
 
@@ -448,7 +448,7 @@ namespace Flan {
             // Handle newline
             if (c == '\n') {
                 cur_pos.x = pos.x;
-                cur_pos.y -= static_cast<float>(_font.grid_h) * scale.y;
+                cur_pos.y += static_cast<float>(_font.grid_h) * scale.y;
                 continue;
             }
             if (c == '\r') {
@@ -468,22 +468,22 @@ namespace Flan {
                 float grid_h_2 = static_cast<float>(_font.grid_h) / 2.f * scale.y;
                 Vertex v1 = { // top left
                     pixels_to_normalized(pos_depth - glm::vec3(-grid_w_2, +grid_h_2, 0.0f), anchor),
-                    glm::vec2(1, 1) * glyph_size + off_uv,
+                    glm::vec2(1, 0) * glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v2 = { // top right
                     pixels_to_normalized(pos_depth - glm::vec3(+grid_w_2, +grid_h_2, 0.0f), anchor),
-                    glm::vec2(0, 1)* glyph_size + off_uv,
+                    glm::vec2(0, 0)* glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v3 = { // bottom right
                     pixels_to_normalized(pos_depth - glm::vec3(+grid_w_2, -grid_h_2, 0.0f), anchor),
-                    glm::vec2(0, 0) * glyph_size + off_uv,
+                    glm::vec2(0, 1) * glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v4 = { // bottom left
                     pixels_to_normalized(pos_depth - glm::vec3(-grid_w_2, -grid_h_2, 0.0f), anchor),
-                    glm::vec2(1, 0) * glyph_size + off_uv,
+                    glm::vec2(1, 1) * glyph_size + off_uv,
                     color_noalpha
                 };
 
@@ -511,7 +511,7 @@ namespace Flan {
         };
 
         // Handle anchor and scale to window
-        return (pos / glm::vec2(_res)) + anchor_offsets[static_cast<size_t>(anchor)];
+        return glm::vec2( 2, -2 ) * (pos / glm::vec2(_res)) + anchor_offsets[static_cast<size_t>(anchor)];
     }
 
     glm::vec3 Renderer::pixels_to_normalized(const glm::vec3 pos, AnchorPoint anchor) const {
@@ -528,7 +528,7 @@ namespace Flan {
         };
 
         // Handle anchor and scale to window
-        return (pos / glm::vec3(_res, 1)) + anchor_offsets[static_cast<size_t>(anchor)];
+        return glm::vec3(2, -2, 1) * (pos / glm::vec3(_res, 1)) + anchor_offsets[static_cast<size_t>(anchor)];
     }
 
     bool Renderer::load_texture(const std::string& path, GLuint& handle) {
