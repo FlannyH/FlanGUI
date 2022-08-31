@@ -117,19 +117,19 @@ namespace Flan {
         std::vector<EntityID> out;
         for (EntityID i = 0; i < _entities.size(); i++) {
             // If the first component isn't present, skip this entity
-            if ((_entities[i] & (1 << get_comp_id<t1>())) == 0) {
+            if ((_entities[i] & (1ull << get_comp_id<t1>())) == 0) {
                 continue;
             }
             // If the second component isn't present, skip this entity
-            if ((_entities[i] & (1 << get_comp_id<t2>())) == 0 && std::is_same_v<t2, void> == false) {
+            if ((_entities[i] & (1ull << get_comp_id<t2>())) == 0 && std::is_same_v<t2, void> == false) {
                 continue;
             }
             // If the third component isn't present, skip this entity
-            if ((_entities[i] & (1 << get_comp_id<t3>())) == 0 && std::is_same_v<t3, void> == false) {
+            if ((_entities[i] & (1ull << get_comp_id<t3>())) == 0 && std::is_same_v<t3, void> == false) {
                 continue;
             }
             // If the fourth component isn't present, skip this entity
-            if ((_entities[i] & (1 << get_comp_id<t4>())) == 0 && std::is_same_v<t4, void> == false) {
+            if ((_entities[i] & (1ull << get_comp_id<t4>())) == 0 && std::is_same_v<t4, void> == false) {
                 continue;
             }
             // Otherwise, add it to the view

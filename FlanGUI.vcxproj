@@ -154,6 +154,7 @@
     <ClCompile Include="External\source\imgui\imgui_tables.cpp" />
     <ClCompile Include="External\source\imgui\imgui_widgets.cpp" />
     <ClCompile Include="FlanGUI.cpp" />
+    <ClCompile Include="Input.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -460,6 +461,7 @@
     <ClInclude Include="External\include\stb\stb_image_write.h" />
     <ClInclude Include="External\include\tinygltf\tiny_gltf.h" />
     <ClInclude Include="ComponentsGUI.h" />
+    <ClInclude Include="Input.h" />
     <ClInclude Include="Renderer.h" />
   </ItemGroup>
   <ItemGroup>

@@ -2,6 +2,7 @@
 #include <functional>
 
 #include "ComponentSystem.h"
+#include "Input.h"
 #include "Renderer.h"
 #include "glm/vec2.hpp"
 
@@ -48,11 +49,19 @@ namespace Flan {
         return entity;
     }
 
-    inline void update_entities(Scene& scene, Renderer& renderer) {
+    inline void update_entities(Scene& scene, Renderer& renderer, Input& input) {
+        // Render sprites
         for (const auto entity : scene.view<Transform, SpriteRender>()) {
             const auto* transform = scene.get_component<Transform>(entity);
             const auto* sprite = scene.get_component<SpriteRender>(entity);
             renderer.draw_box_textured(sprite->tex_path, transform->top_left, transform->bottom_right, { 1, 1, 1, 0 }, 0.0f, transform->depth, transform->anchor);
+        }
+
+        // Handle clickable components
+        for (const auto entity : scene.view<Transform, Clickable>()) {
+            const auto* transform = scene.get_component<Transform>(entity);
+            const auto* clickable = scene.get_component<Clickable>(entity);
+
         }
     }
 }

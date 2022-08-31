@@ -185,7 +185,7 @@ namespace Flan {
         // Init basic rendering
         _window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
-        glfwSwapInterval(0);
+        glfwSwapInterval(1);
         _shader = shader_from_file("Shaders/sprite");
         load_font("font.png");
         //shader = shader_from_string(vert_shader, frag_shader);
