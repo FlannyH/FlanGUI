@@ -79,7 +79,7 @@ namespace Flan {
         void draw_circle_line(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_circle_solid(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_flat_polygon(std::vector<Vertex> verts, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor = AnchorPoint::top_left, AnchorPoint text_anchor = AnchorPoint::top_left);
     private:
         [[nodiscard]] glm::vec2 pixels_to_normalized(glm::vec2 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
         [[nodiscard]] glm::vec3 pixels_to_normalized(glm::vec3 pos, AnchorPoint anchor = AnchorPoint::top_left) const;

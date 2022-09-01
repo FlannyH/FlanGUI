@@ -159,6 +159,18 @@ namespace Flan {
         "    frag_color = colour;\n"
         "}";
 
+    const glm::vec2 anchor_offsets[] = {
+        { 0,  0}, // center
+        {-1,  1}, // top left
+        { 0,  1}, // top
+        { 1,  1}, // top right
+        { 1,  0}, // right
+        { 1, -1}, // bottom right
+        { 0, -1}, // bottom
+        {-1, -1}, // bottom left
+        {-1,  0}, // left
+    };
+
     void Renderer::init() {
         // Init + window settings
         glfwInit();
@@ -441,14 +453,56 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint anchor) {
+    void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor, AnchorPoint text_anchor) {
         init_luts();
         glm::vec2 cur_pos = pos;
+
+        // Calculate width
+        std::vector<int> widths;
+        int width = 0;
+        int height = _font.grid_h * scale.y;
+        for (auto& c : text) {
+            if (c == '\n') {
+                widths.push_back(width);
+                width = 0;
+                continue;
+            }
+            auto& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+            width += (_font.widths[wentry[0]]) * scale.x;
+        }
+        widths.push_back(width); // the final width doesn't get added in the for loop, do that manually
+        height *= widths.size();
+
+        // Calculate offsets based on text anchor point
+        std::vector<glm::vec3> offsets;
+        for (auto& width : widths) {
+            // Get the offset from the table
+            glm::vec3 offset = glm::vec3(anchor_offsets[static_cast<size_t>(text_anchor)], 0);
+
+            // We also need to invert the x-axis
+            offset.x = -offset.x;
+
+            // Since text by default renders from top_left, we need to offset the offset to the center
+            offset.x -= 1;
+            offset.y -= 1;
+            
+            // We need to scale this to the width and height of the 
+            offset.x *= static_cast<float>(width) * 0.5f;
+            offset.y *= static_cast<float>(height) * 0.5f;
+            //offset.y -= 0.5f * static_cast<float>(height);
+
+            // Add it to the offset array
+            offsets.push_back(offset);
+            //offsets.push_back({0,0,0});
+        }
+
+        int width_idx = 0;
         for (auto& c : text) {
             // Handle newline
             if (c == '\n') {
                 cur_pos.x = pos.x;
                 cur_pos.y += static_cast<float>(_font.grid_h) * scale.y;
+                width_idx++;
                 continue;
             }
             if (c == '\r') {
@@ -461,28 +515,28 @@ namespace Flan {
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc = wentry[i];
                 glm::vec4 color_noalpha = color * glm::vec4(1, 1, 1, 0);
-                glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0));
+                glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0)) + offsets[width_idx];
                 glm::vec2 off_uv = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);
                 glm::vec2 glyph_size = glm::vec2(1.f / 16.f, 1.f / 8.f);
-                float grid_w_2 = static_cast<float>(_font.grid_w) / 2.f * scale.x;
-                float grid_h_2 = static_cast<float>(_font.grid_h) / 2.f * scale.y;
+                float grid_w_2 = static_cast<float>(_font.grid_w) * scale.x;
+                float grid_h_2 = static_cast<float>(_font.grid_h) * scale.y;
                 Vertex v1 = { // top left
-                    pixels_to_normalized(pos_depth - glm::vec3(-grid_w_2, +grid_h_2, 0.0f), anchor),
-                    glm::vec2(1, 0) * glyph_size + off_uv,
+                    pixels_to_normalized(pos_depth + glm::vec3(grid_w_2, 0, 0.0f), ui_anchor),
+                    glm::vec2(1, 0)* glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v2 = { // top right
-                    pixels_to_normalized(pos_depth - glm::vec3(+grid_w_2, +grid_h_2, 0.0f), anchor),
-                    glm::vec2(0, 0)* glyph_size + off_uv,
+                    pixels_to_normalized(pos_depth + glm::vec3(0, 0, 0.0f), ui_anchor),
+                    glm::vec2(0, 0) * glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v3 = { // bottom right
-                    pixels_to_normalized(pos_depth - glm::vec3(+grid_w_2, -grid_h_2, 0.0f), anchor),
+                    pixels_to_normalized(pos_depth + glm::vec3(0, grid_h_2, 0.0f), ui_anchor),
                     glm::vec2(0, 1) * glyph_size + off_uv,
                     color_noalpha
                 };
                 Vertex v4 = { // bottom left
-                    pixels_to_normalized(pos_depth - glm::vec3(-grid_w_2, -grid_h_2, 0.0f), anchor),
+                    pixels_to_normalized(pos_depth + glm::vec3(grid_w_2, grid_h_2, 0.0f), ui_anchor),
                     glm::vec2(1, 1) * glyph_size + off_uv,
                     color_noalpha
                 };
@@ -498,37 +552,13 @@ namespace Flan {
     }
 
     glm::vec2 Renderer::pixels_to_normalized(const glm::vec2 pos, AnchorPoint anchor) const {
-        const glm::vec2 anchor_offsets[] = {
-            { 0,  0}, // center
-            {-1,  1}, // top left
-            { 0,  1}, // top
-            { 1,  1}, // top right
-            { 1,  0}, // right
-            { 1, -1}, // bottom right
-            { 0, -1}, // bottom
-            {-1, -1}, // bottom left
-            {-1,  0}, // left
-        };
-
         // Handle anchor and scale to window
         return glm::vec2( 2, -2 ) * (pos / glm::vec2(_res)) + anchor_offsets[static_cast<size_t>(anchor)];
     }
 
     glm::vec3 Renderer::pixels_to_normalized(const glm::vec3 pos, AnchorPoint anchor) const {
-        const glm::vec3 anchor_offsets[] = {
-            { 0,  0, 0 }, // center
-            {-1,  1, 0 }, // top left
-            { 0,  1, 0 }, // top
-            { 1,  1, 0 }, // top right
-            { 1,  0, 0 }, // right
-            { 1, -1, 0 }, // bottom right
-            { 0, -1, 0 }, // bottom
-            {-1, -1, 0 }, // bottom left
-            {-1,  0, 0 }, // left
-        };
-
         // Handle anchor and scale to window
-        return glm::vec3(2, -2, 1) * (pos / glm::vec3(_res, 1)) + anchor_offsets[static_cast<size_t>(anchor)];
+        return glm::vec3(2, -2, 1) * (pos / glm::vec3(_res, 1)) + glm::vec3(anchor_offsets[static_cast<size_t>(anchor)], 0.f);
     }
 
     bool Renderer::load_texture(const std::string& path, GLuint& handle) {
