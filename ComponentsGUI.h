@@ -43,11 +43,27 @@ namespace Flan {
         int n_textures = 0; // Number of animation frames, sliced horizontally
     };
 
-    inline EntityID button(Scene& scene, const glm::vec2 top_left, const glm::vec2 bottom_right, std::function<void()> func, const float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left) {
+    struct Text {
+        Text(const std::wstring& txt, const glm::vec2 scl = { 2, 2 }, const glm::vec4 col = { 1, 1, 1, 1 }, const AnchorPoint txt_anchr = AnchorPoint::center, const AnchorPoint ui_anchr = AnchorPoint::center) {
+            text = txt;
+            text_anchor = txt_anchr;
+            ui_anchor = ui_anchr;
+            color = col;
+            scale = scl;
+        };
+        std::wstring text;
+        AnchorPoint text_anchor;
+        AnchorPoint ui_anchor;
+        glm::vec4 color;
+        glm::vec2 scale;
+    };
+
+    inline EntityID button(Scene& scene, const glm::vec2 top_left, const glm::vec2 bottom_right, std::function<void()> func, const float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left, const std::wstring& text = L"", glm::vec4 text_color = {1, 1, 1, 1}, glm::vec2 text_scale = {2, 2}) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, { top_left, bottom_right, depth, anchor });
         scene.add_component<Clickable>(entity, {std::move(func)});
-        scene.add_component<SpriteRender>(entity, { "test.png", 1 });
+        scene.add_component<SpriteRender>(entity, { "button.png", 1 });
+        scene.add_component<Text>(entity, { text, text_scale, text_color });
         return entity;
     }
 
@@ -56,13 +72,42 @@ namespace Flan {
         for (const auto entity : scene.view<Transform, SpriteRender>()) {
             const auto* transform = scene.get_component<Transform>(entity);
             const auto* sprite = scene.get_component<SpriteRender>(entity);
-            renderer.draw_box_textured(sprite->tex_path, transform->top_left, transform->bottom_right, { 1, 1, 1, 0 }, 0.0f, transform->depth, transform->anchor);
+            // If it has a clickable component, use that to render the button
+            glm::vec4 color = { 1, 1, 1, 1 };
+            if (const auto* clickable = scene.get_component<Clickable>(entity)) {
+                if (clickable->state == ClickState::hover) {
+                    color *= 0.9f;
+                }
+                if (clickable->state == ClickState::click) {
+                    color *= 0.7f;
+                }
+            }
+            renderer.draw_box_textured(sprite->tex_path, transform->top_left, transform->bottom_right, color, 0.0f, transform->depth + 0.001f, transform->anchor);
+        }
+
+        // Render text
+        for (const auto entity : scene.view<Transform, Text>()) {
+            const auto* transform = scene.get_component<Transform>(entity);
+            const auto* text = scene.get_component<Text>(entity);
+            const glm::vec2 anchor_offsets[] = {
+                {0.5f, 0.5f}, // center
+                {0.0f, 1.0f}, // top left
+                {0.5f, 1.0f}, // top
+                {1.0f, 1.0f}, // top right
+                {1.0f, 0.5f}, // right
+                {1.0f, 0.0f}, // bottom right
+                {0.5f, 0.0f}, // bottom
+                {0.0f, 0.0f}, // bottom left
+                {0.0f, 0.5f}, // left
+            };
+            const glm::vec2 offset_from_top_left = transform->top_left + (transform->bottom_right - transform->top_left) * anchor_offsets[static_cast<size_t>(transform->anchor)];
+            renderer.draw_text(text->text, offset_from_top_left, text->scale, text->color, transform->depth, text->ui_anchor, text->text_anchor);
         }
 
         // Handle clickable components
         for (const auto entity : scene.view<Transform, Clickable>()) {
             const auto* transform = scene.get_component<Transform>(entity);
-            const auto* clickable = scene.get_component<Clickable>(entity);
+            auto* clickable = scene.get_component<Clickable>(entity);
 
             const glm::vec2 anchor_offsets[] = {
                 { 0,  0}, // center
@@ -88,19 +133,32 @@ namespace Flan {
             renderer.draw_line(mouse_pos - glm::vec2{0, 32}, mouse_pos + glm::vec2{0, 32}, { 0, 1, 1, 1 });
             renderer.draw_line(mouse_pos - glm::vec2{32, 0}, mouse_pos + glm::vec2{32, 0}, { 0, 1, 1, 1 });
 
-            if (mouse_pos.x >= tl.x &&
-                mouse_pos.y >= tl.y &&
-                mouse_pos.x <= br.x &&
-                mouse_pos.y <= br.y) {
-                renderer.draw_box_solid(tl, tl + glm::vec2{ 100, 30 }, { 1, 0, 1, 1 });
+            if (clickable->state != ClickState::click) {
+                if (mouse_pos.x >= tl.x &&
+                    mouse_pos.y >= tl.y &&
+                    mouse_pos.x <= br.x &&
+                    mouse_pos.y <= br.y) {
+                    clickable->state = ClickState::hover;
+                } else {
+                    clickable->state = ClickState::idle;
+                }
             }
-            if (input.mouse_up(0)) {
-                if (mouse_pos.x >= tl.x&&
-                    mouse_pos.y >= tl.y&&
-                    mouse_pos.x <= br.x&&
+            if (input.mouse_down(0)) {
+                if (mouse_pos.x >= tl.x &&
+                    mouse_pos.y >= tl.y &&
+                    mouse_pos.x <= br.x &&
+                    mouse_pos.y <= br.y) {
+                    clickable->state = ClickState::click;
+                }
+            }
+            if (input.mouse_up(0) && clickable->state == ClickState::click) {
+                if (mouse_pos.x >= tl.x &&
+                    mouse_pos.y >= tl.y &&
+                    mouse_pos.x <= br.x &&
                     mouse_pos.y <= br.y) {
                     clickable->on_click();
                 }
+                clickable->state = ClickState::idle;
             }
         }
     }
