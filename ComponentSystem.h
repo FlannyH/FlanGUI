@@ -112,7 +112,7 @@ namespace Flan {
     template <class T>
     T* Scene::get_component(EntityID entity) {
         // If the entity has this component
-        if (_entities[entity] & (1 << get_comp_id<T>())) {
+        if (_entities[entity] & (1ull << get_comp_id<T>())) {
             // Return the component
             return static_cast<T*>(_pools[get_comp_id<T>()].get(entity));
         }

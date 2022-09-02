@@ -33,9 +33,8 @@ namespace Flan {
         // Reset scroll
         _mouse_wheel = 0;
     }
-
-    // ReSharper disable once CppParameterMayBeConst
-    void Input::scroll_callback(GLFWwindow* window, double x, double y) {
+    
+    void Input::scroll_callback(GLFWwindow* window, [[maybe_unused]] double x, double y) {
         static_cast<Input*>(glfwGetWindowUserPointer(window))->_mouse_wheel += static_cast<float>(y);
     }
 

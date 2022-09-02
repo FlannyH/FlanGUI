@@ -29,18 +29,21 @@ int main()
     Flan::Input input(renderer.window());
 
     // Create button
-    auto botton1 = Flan::button(scene, { -100, -150 }, { 100, -250 }, []()
-        {
-            printf("hi1!\n");
-        }, 0.0f, Flan::AnchorPoint::center, L"Button1", { 1, 0, 0, 1 });
-    auto botton2 = Flan::button(scene, { -100, 50 }, { 100, -50 }, []()
-        {
-            printf("hi2!\n");
-        }, 0.0f, Flan::AnchorPoint::center, L"Button2", { 0, 0.5f, 0, 1 });
-    auto botton3 = Flan::button(scene, { -100, 150 }, { 100, 50 }, []()
-        {
-            printf("hi3!\n");
-        }, 0.0f, Flan::AnchorPoint::center, L"Button3", {0, 0, 1, 1});
+    //auto botton1 = Flan::button(scene, { -100, -150 }, { 100, -250 }, []()
+    //    {
+    //        printf("hi1!\n");
+    //    }, 0.0f, Flan::AnchorPoint::center, L"Button1", { 1, 0, 0, 1 });
+    //auto botton2 = Flan::button(scene, { -100, 50 }, { 100, -50 }, []()
+    //    {
+    //        printf("hi2!\n");
+    //    }, 0.0f, Flan::AnchorPoint::center, L"Button2", { 0, 0.5f, 0, 1 });
+    //auto botton3 = Flan::button(scene, { -100, 150 }, { 100, 50 }, []()
+    //    {
+    //        printf("hi3!\n");
+    //    }, 0.0f, Flan::AnchorPoint::center, L"Button3", {0, 0, 1, 1});
+    //(void)botton1;
+    //(void)botton2;
+    //(void)botton3;
 
     float smooth_dt = 0.0f;
     float time = 0.0f;
@@ -54,7 +57,7 @@ int main()
         wchar_t frametime_text[256];
         const float dt = calculate_delta_time();
         time += dt;
-        smooth_dt = smooth_dt + (dt - smooth_dt) * 0.01f;
+        smooth_dt = smooth_dt + (dt - smooth_dt) * (1.f-powf(0.02f, dt));
         swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps\nmouse_pos_absolute: %.0f, %.0f\nmouse_pos_window: %.0f, %.0f\nmouse_pos_relative: %.0f, %.0f\nmouse_buttons = %i%i%i\nmouse_down = %i%i%i\nmouse_up = %i%i%i\nmouse_wheel = %.0f", 
             smooth_dt * 1000.f, 
             1.0f/smooth_dt, 
@@ -75,6 +78,10 @@ int main()
         //renderer.draw_box_line({ -400, 400 }, { 400, -400 }, { 1, 0, 0, 1 }, 8, 0.0f, Flan::AnchorPoint::center);
         //renderer.draw_box_solid({ -380, 380 }, { 380, -380 }, { 0.1, 0, 0, 1 }, 0.1f, Flan::AnchorPoint::center);
         //renderer.draw_box_textured("test.png", { -350, 350 }, {350, -350}, {1, 0.5f, 1, 1}, 8, 0.0f, Flan::AnchorPoint::center);
+
+        renderer.draw_box_textured("button.png", Flan::TextureType::stretch, { 100, 50 }, { 500 + (int)(sinf(time) * 100), 250 + (int)(cosf(time) * 100) }, {1, 1, 1, 1});
+        renderer.draw_box_textured("button.png", Flan::TextureType::tile, { 100, 300 }, { 500 + (int)(sinf(time) * 100), 500 + (int)(cosf(time) * 100) }, {1, 1, 1, 1});
+        renderer.draw_box_textured("button.png", Flan::TextureType::slice, { 700, 50 }, { 1100 + (int)(sinf(time) * 100), 250 + (int)(cosf(time) * 100) }, {1, 1, 1, 1});
 
         renderer.end_frame();
         input.update(renderer.window());
