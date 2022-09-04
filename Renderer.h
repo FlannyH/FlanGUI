@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "GL/glcorearb.h"
-#include "GLFW/glfw3.h"
+#include "glfw/glfw3.h"
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
@@ -72,7 +72,7 @@ namespace Flan {
         void init_luts();
         void flip_buffers() const;
         [[nodiscard]] GLFWwindow* window() const { return _window; }
-        glm::ivec2 resolution() const { return _res; }
+        [[nodiscard]] glm::ivec2 resolution() const { return _res; }
 
         //---Resource Management---
         static GLuint shader_from_file(const std::string& path);
@@ -93,9 +93,10 @@ namespace Flan {
         void draw_flat_polygon(std::vector<Vertex> verts, AnchorPoint anchor = AnchorPoint::top_left);
         void get_texture(const std::string& texture);
         void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor = AnchorPoint::top_left, AnchorPoint text_anchor = AnchorPoint::top_left);
-    private:
+        [[nodiscard]] glm::vec2 apply_anchor(glm::vec2 pos, AnchorPoint anchor);
         [[nodiscard]] glm::vec2 pixels_to_normalized(glm::vec2 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
         [[nodiscard]] glm::vec3 pixels_to_normalized(glm::vec3 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
+    private:
 
         std::vector<Triangle> _flat_queue;
         std::map<GLuint, std::vector<Triangle>> _textured_queue;

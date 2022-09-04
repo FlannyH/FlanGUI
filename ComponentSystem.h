@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cassert>
 
 #define MAX_ENTITIES 1024
 
@@ -21,6 +22,7 @@ namespace Flan {
         }
 
         [[nodiscard]] void* get(const size_t index) const {
+            assert(pool != nullptr);
             return pool + index * comp_size;
         }
     };
@@ -34,7 +36,7 @@ namespace Flan {
         return comp_id;
     }
 
-    typedef size_t EntityID;
+    using EntityID = size_t;
 
     class Scene {
     public:
@@ -97,6 +99,11 @@ namespace Flan {
         if (comp_id >= _pools.size()) {
             _pools.resize(comp_id + 1);
             _pools[comp_id] = Pool(sizeof(T));
+        }
+
+        // If the pool is null, initialize it
+        if (_pools[comp_id].pool == nullptr) {
+            _pools[comp_id].init(sizeof(T));
         }
 
         // Initialize the component

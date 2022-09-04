@@ -644,6 +644,10 @@ namespace Flan {
         }
     }
 
+    glm::vec2 Renderer::apply_anchor(const glm::vec2 pos, AnchorPoint anchor) {
+        return pos + (glm::vec2(0.5f, -0.5f) * glm::vec2(_res) * (anchor_offsets[static_cast<size_t>(anchor)] + glm::vec2(1.0f, 1.0f)));
+    }
+
     glm::vec2 Renderer::pixels_to_normalized(const glm::vec2 pos, AnchorPoint anchor) const {
         // Handle anchor and scale to window
         return glm::vec2( 2, -2 ) * (pos / glm::vec2(_res)) + anchor_offsets[static_cast<size_t>(anchor)];
