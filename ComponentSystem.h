@@ -91,9 +91,9 @@ namespace Flan {
 
     template <typename T>
     void Scene::add_component(EntityID entity) {
-        auto comp_id = get_comp_id<T>();
+        uint64_t comp_id = get_comp_id<T>();
         // Set the component flag for this component
-        _entities[entity] |= 1 << comp_id;
+        _entities[entity] |= 1ull << comp_id;
 
         // If the pool for this component does not exist, create one
         if (comp_id >= _pools.size()) {
@@ -137,15 +137,15 @@ namespace Flan {
                 continue;
             }
             // If the second component isn't present, skip this entity
-            if ((_entities[i] & (1ull << get_comp_id<t2>())) == 0 && std::is_same_v<t2, void> == false) {
+            if ((_entities[i] & (1ull << get_comp_id<t2>())) == 0 && !std::is_same_v<t2, void>) {
                 continue;
             }
             // If the third component isn't present, skip this entity
-            if ((_entities[i] & (1ull << get_comp_id<t3>())) == 0 && std::is_same_v<t3, void> == false) {
+            if ((_entities[i] & (1ull << get_comp_id<t3>())) == 0 && !std::is_same_v<t3, void>) {
                 continue;
             }
             // If the fourth component isn't present, skip this entity
-            if ((_entities[i] & (1ull << get_comp_id<t4>())) == 0 && std::is_same_v<t4, void> == false) {
+            if ((_entities[i] & (1ull << get_comp_id<t4>())) == 0 && !std::is_same_v<t4, void>) {
                 continue;
             }
             // Otherwise, add it to the view

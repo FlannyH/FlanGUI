@@ -45,7 +45,7 @@ int main()
     Flan::create_numberbox(scene, "debug_numberbox", { 100, 600 }, { 200, 700 }, 0.0, 100.0, 1.0, 50.0, {1,1,1,1}, {1,1});
 
     float smooth_dt = 0.0f;
-    float time = 0.0f;
+    [[maybe_unused]] float time = 0.0f;
     wchar_t frametime_text[256];
 
     while (!glfwWindowShouldClose(renderer.window())) {

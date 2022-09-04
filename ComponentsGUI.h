@@ -129,8 +129,8 @@ namespace Flan {
 
     struct Value {
         // Index into value pool
-        size_t index;
-        VarType type;
+        size_t index{};
+        VarType type{};
 
         // Assign a new value index
         Value() {
@@ -233,7 +233,7 @@ namespace Flan {
         // Bind the text string to the variable name
         const auto value_c = scene.get_component<Value>(entity);
         Value::bind(name, value_c->index);
-        value_c->set_ptr(name, new std::wstring(L"TEST"));
+        Value::set_ptr(name, new std::wstring(L"TEST"));
 
         return entity;
     }
@@ -251,7 +251,7 @@ namespace Flan {
         const glm::vec2 text_scale = {2, 2},
         const float depth = 0.0f,
         AnchorPoint anchor = AnchorPoint::top_left, 
-        AnchorPoint text_anchor_point = AnchorPoint::top_left
+        AnchorPoint text_anchor_point = AnchorPoint::center
     ) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, { top_left, bottom_right, depth, anchor });
@@ -260,7 +260,7 @@ namespace Flan {
         scene.add_component<Draggable>(entity);
         scene.add_component<MouseInteract>(entity);
         scene.add_component<SpriteRender>(entity, { "numberbox.png", 1, TextureType::slice });
-        scene.add_component<Text>(entity, { L"", text_scale, text_color, AnchorPoint::center, AnchorPoint::center });
+        scene.add_component<Text>(entity, { L"", text_scale, text_color, AnchorPoint::center, text_anchor_point });
         scene.get_component<Value>(entity)->set<double>(init_val);
         return entity;
     }
@@ -315,9 +315,10 @@ namespace Flan {
                     if (range) {
                         if (range->step == floor(range->step) &&
                             range->min == floor(range->min) &&
-                            range->max == floor(range->max)
-                            )
+                            range->max == floor(range->max)) 
+                        {
                             swprintf_s(text->text, 32, L"%.0f", val);
+                        }
                     }
                     else {
                         swprintf_s(text->text, 32, L"%.2f", val);
@@ -340,25 +341,13 @@ namespace Flan {
             auto* clickable = scene.get_component<Clickable>(entity);
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
 
-            const glm::vec2 anchor_offsets[] = {
-                { 0,  0}, // center
-                {-1,  1}, // top left
-                { 0,  1}, // top
-                { 1,  1}, // top right
-                { 1,  0}, // right
-                { 1, -1}, // bottom right
-                { 0, -1}, // bottom
-                {-1, -1}, // bottom left
-                {-1,  0}, // left
-            };
-
             // Get mouse position, and get an actual correct top-left and bottom-right
             const glm::vec2 mouse_pos = renderer.pixels_to_normalized(input.mouse_pos(MouseRelative::window), AnchorPoint::top_left);
             glm::vec2 tl_ = renderer.pixels_to_normalized(transform->top_left, transform->anchor);
             glm::vec2 br_ = renderer.pixels_to_normalized(transform->bottom_right, transform->anchor);
             const glm::vec2 tl = { std::min(tl_.x, br_.x), std::min(tl_.y, br_.y) };
             const glm::vec2 br = { std::max(tl_.x, br_.x), std::max(tl_.y, br_.y) };
-            
+
             // Determine whether the mouse is inside the component's bounding box
             const bool is_inside_bb =
                 mouse_pos.x >= tl.x &&
@@ -385,13 +374,10 @@ namespace Flan {
             }
             // If we release the mouse while this element is in click state,
             if (input.mouse_up(0) && mouse_interact->state == ClickState::click) {
-                // and the mouse is still on the component,
-                if (is_inside_bb) {
-                    // and the entity is clickable
-                    if (clickable) {
-                        // Call the function of this clickable
-                        clickable->on_click();
-                    }
+                // and the mouse is still on the component, and the component is clickable
+                if (is_inside_bb && clickable) {
+                    // Call the function of this clickable
+                    clickable->on_click();
                 }
                 // Reset the MouseInteract state back to idle
                 mouse_interact->state = ClickState::idle;
@@ -400,7 +386,6 @@ namespace Flan {
 
         // Handle draggable components like sliders, numberboxes,
         for (const auto entity : scene.view<Value, Draggable, MouseInteract, NumberRange>()) {
-            const auto* transform = scene.get_component<Transform>(entity);
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* value = scene.get_component<Value>(entity);
             auto* number_range = scene.get_component<NumberRange>(entity);
