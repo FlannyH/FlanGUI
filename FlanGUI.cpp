@@ -35,6 +35,7 @@ int main()
         }, { L"Button1", {2, 2},  { 1, 0, 0, 1 }, Flan::AnchorPoint::center, Flan::AnchorPoint::center});
     Flan::create_text(scene, "debug_text", { { 8, 8 }, {9, 9} }, { L"" });
     Flan::create_numberbox(scene, "debug_numberbox", { { 100, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
+    Flan::create_wheelknob(scene, "debug_numberbox", { { 300, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
 
     float smooth_dt = 0.0f;
     [[maybe_unused]] float time = 0.0f;

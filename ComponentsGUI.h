@@ -115,6 +115,7 @@ namespace Flan {
     struct Scrollable{}; // This is a tag without data
     struct NumberBox{}; // This is a tag without data
     struct Button{}; // This is a tag without data
+    struct WheelKnob{}; // This is a tag without data
 
     inline static char* value_names[256]{};
     inline static uint64_t value_pool[256]{};
@@ -249,7 +250,7 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        const NumberRange& range = {0.0, 100.0, 1.0},
+        const NumberRange& range = { 0.0, 100.0, 1.0 },
         const double init_val = 0,
         const Text& text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::center, }
     ) {
@@ -261,6 +262,27 @@ namespace Flan {
         scene.add_component<Scrollable>(entity);
         scene.add_component<MouseInteract>(entity);
         scene.add_component<SpriteRender>(entity, { "numberbox.png", 1, TextureType::slice });
+        scene.add_component<Text>(entity, text);
+        scene.get_component<Value>(entity)->set<double>(init_val);
+        return entity;
+    }
+
+    inline EntityID create_wheelknob(
+        Scene& scene,
+        const std::string& name,
+        const Transform& transform,
+        const NumberRange& range = { 0.0, 100.0, 1.0 },
+        const double init_val = 0,
+        const Text& text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::center, }
+    ) {
+        const EntityID entity = scene.new_entity();
+        scene.add_component<Transform>(entity, transform);
+        scene.add_component<Value>(entity, { name, VarType::float64 });
+        scene.add_component<NumberRange>(entity, range);
+        scene.add_component<Draggable>(entity);
+        scene.add_component<Scrollable>(entity);
+        scene.add_component<MouseInteract>(entity);
+        scene.add_component<WheelKnob>(entity);
         scene.add_component<Text>(entity, text);
         scene.get_component<Value>(entity)->set<double>(init_val);
         return entity;
@@ -429,6 +451,25 @@ namespace Flan {
     inline void update_entities(Scene& scene, Renderer& renderer, const Input& input) {
         // Render sprites
         system_comp_sprite(scene, renderer);
+
+        // Render special cases
+        {
+            for (const auto entity : scene.view<Transform, Value, NumberRange, WheelKnob>()) {
+                auto* transform = scene.get_component<Transform>(entity);
+                auto* value = scene.get_component<Value>(entity);
+                auto* range = scene.get_component<NumberRange>(entity);
+
+                // Draw the wheel
+                const glm::vec2 center = (transform->top_left + transform->bottom_right) / 2.0f;
+                const glm::vec2 scale = center - transform->top_left;
+                double& val = value->get_as_ref<double>();
+                const float angle = 1.5f * 3.14159265359f + ((val - range->min) / (range->max - range->min) - 0.5f) * (1.75f * 3.14159265359f);
+                const glm::vec2 line_b = center + glm::vec2(cosf(angle), sinf(angle)) * scale;
+                renderer.draw_circle_solid(center, scale, { 1, 1, 1, 1 }, 0.0001f, transform->anchor);
+                renderer.draw_circle_line(center, scale, { 0, 0, 0, 1 }, 2, 0.0001f, transform->anchor);
+                renderer.draw_line(center, line_b, { 0, 0, 0, 1 }, 8);
+            }
+        }
 
         // Render text
         system_comp_text(scene, renderer);
