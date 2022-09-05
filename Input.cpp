@@ -32,6 +32,9 @@ namespace Flan {
 
         // Reset scroll
         _mouse_wheel = 0;
+
+        // Set mouse cursor visibility
+        glfwSetInputMode(window, GLFW_CURSOR, _mouse_visible ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
     }
     
     void Input::scroll_callback(GLFWwindow* window, [[maybe_unused]] double x, double y) {
@@ -64,5 +67,9 @@ namespace Flan {
 
     float Input::mouse_wheel() const {
         return _mouse_wheel;
+    }
+
+    void Input::mouse_visible(const bool value) {
+        _mouse_visible = value;
     }
 }

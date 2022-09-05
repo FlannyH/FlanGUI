@@ -14,6 +14,7 @@ namespace Flan {
         explicit Input(GLFWwindow* window);
         void update(GLFWwindow* window); // Get input data. Should be called at the end of the main loop to get proper mouse wheel support.
         static void scroll_callback(GLFWwindow* window, [[maybe_unused]] double x, double y);
+        void mouse_visible(const bool value);
         [[nodiscard]] glm::vec2 mouse_pos(MouseRelative rel) const; // Get the current mouse position
         [[nodiscard]] bool mouse_held(int button) const; // Returns true when the requested mouse button is held down
         [[nodiscard]] bool mouse_down(int button) const; // Returns true on the frame that the requested mouse button is pressed
@@ -26,5 +27,6 @@ namespace Flan {
         float _mouse_wheel = 0.0f;
         int _mouse_button_curr[3] = {};
         int _mouse_button_prev[3] = {};
+        bool _mouse_visible = true;
     };
 }

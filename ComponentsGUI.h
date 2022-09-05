@@ -54,20 +54,27 @@ namespace Flan {
         ClickState state = ClickState::idle;
     };
 
-    struct SpriteRender {
-        SpriteRender(const std::string& path, const int n_tex, const TextureType type) {
+    struct SpriteRender {};
+
+    struct Sprite {
+        Sprite(const std::string& path, const TextureType type = TextureType::stretch) {
             tex_path = path;
-            n_textures = n_tex;
             tex_type = type;
         }
-        SpriteRender(const SpriteRender& other) {
+        Sprite(const Sprite& other) {
             tex_path = std::string(other.tex_path);
-            n_textures = other.n_textures;
             tex_type = other.tex_type;
         }
         std::string tex_path;
-        int n_textures = 0; // Number of animation frames, sliced horizontally
         TextureType tex_type = TextureType::stretch;
+    };
+
+    struct Sprites {
+        Sprites(std::initializer_list<Sprite> init_list) {
+            // Insert the init_list's values
+            sprites.insert(sprites.end(), init_list.begin(), init_list.end());
+        }
+        std::vector<Sprite> sprites;
     };
 
     struct Text {
@@ -110,12 +117,14 @@ namespace Flan {
     };
     
     struct Draggable {
+        bool is_horizontal = false;
     };
 
     struct Scrollable{}; // This is a tag without data
     struct NumberBox{}; // This is a tag without data
     struct Button{}; // This is a tag without data
     struct WheelKnob{}; // This is a tag without data
+    struct Slider{};
 
     inline static char* value_names[256]{};
     inline static uint64_t value_pool[256]{};
@@ -221,7 +230,8 @@ namespace Flan {
         scene.add_component<Transform>(entity, transform);
         scene.add_component<Clickable>(entity, {std::move(func)});
         scene.add_component<MouseInteract>(entity);
-        scene.add_component<SpriteRender>(entity, { "button.png", 1, TextureType::slice });
+        scene.add_component<Sprites>(entity, { {"button.png", TextureType::slice} });
+        scene.add_component<SpriteRender>(entity);
         scene.add_component<Text>(entity, text);
         scene.add_component<Button>(entity);
         return entity;
@@ -261,7 +271,8 @@ namespace Flan {
         scene.add_component<Draggable>(entity);
         scene.add_component<Scrollable>(entity);
         scene.add_component<MouseInteract>(entity);
-        scene.add_component<SpriteRender>(entity, { "numberbox.png", 1, TextureType::slice });
+        scene.add_component<Sprites>(entity, { {"numberbox.png", TextureType::slice} });
+        scene.add_component<SpriteRender>(entity);
         scene.add_component<Text>(entity, text);
         scene.get_component<Value>(entity)->set<double>(init_val);
         return entity;
@@ -273,7 +284,7 @@ namespace Flan {
         const Transform& transform,
         const NumberRange& range = { 0.0, 100.0, 1.0 },
         const double init_val = 0,
-        const Text& text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::center, }
+        const Text& text = { L"",{2, 2}, {1,0,1,1}, AnchorPoint::bottom, AnchorPoint::center, }
     ) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
@@ -288,10 +299,38 @@ namespace Flan {
         return entity;
     }
 
+    inline EntityID create_slider(
+        Scene& scene,
+        const std::string& name,
+        const Transform& transform,
+        const NumberRange& range = { 0.0, 100.0, 1.0 },
+        const double init_val = 0,
+        Text text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::bottom, }
+    ) {
+        const glm::vec2 scale = transform.bottom_right - transform.top_left;
+        const bool is_horizontal = (scale.x) > (scale.y);
+        if (is_horizontal) {
+            text.ui_anchor = AnchorPoint::center;
+            text.text_anchor = AnchorPoint::top;
+        }
+
+        const EntityID entity = scene.new_entity();
+        scene.add_component<Transform>(entity, transform);
+        scene.add_component<Value>(entity, { name, VarType::float64 });
+        scene.add_component<NumberRange>(entity, range);
+        scene.add_component<Draggable>(entity, { is_horizontal });
+        scene.add_component<Scrollable>(entity);
+        scene.add_component<MouseInteract>(entity);
+        scene.add_component<Slider>(entity);
+        scene.add_component<Text>(entity, text);
+        scene.get_component<Value>(entity)->set<double>(init_val);
+        return entity;
+    }
+
     inline void system_comp_sprite(Scene& scene, Renderer& renderer) {
-        for (const auto entity : scene.view<Transform, SpriteRender>()) {
+        for (const auto entity : scene.view<Transform, Sprites, SpriteRender>()) {
             const auto* transform = scene.get_component<Transform>(entity);
-            const auto* sprite = scene.get_component<SpriteRender>(entity);
+            const auto* sprite = scene.get_component<Sprites>(entity);
             // If it has a clickable component, use that to render the button
             glm::vec4 color = { 1, 1, 1, 1 };
             if (const auto* mouse_interact = scene.get_component<MouseInteract>(entity)) {
@@ -302,7 +341,7 @@ namespace Flan {
                     color *= 0.7f;
                 }
             }
-            renderer.draw_box_textured(sprite->tex_path, sprite->tex_type, transform->top_left, transform->bottom_right, color, transform->depth + 0.001f, transform->anchor);
+            renderer.draw_box_textured(sprite->sprites[0].tex_path, sprite->sprites[0].tex_type, transform->top_left, transform->bottom_right, color, transform->depth + 0.001f, transform->anchor);
         }
     }
 
@@ -357,7 +396,56 @@ namespace Flan {
         }
     }
 
-    inline void system_comp_mouse_interact(Scene& scene, Renderer& renderer, const Input& input) {
+    inline void system_comp_special_render(Scene& scene, Renderer& renderer) {
+        // Wheel knobs
+        for (const auto entity : scene.view<Transform, Value, NumberRange, WheelKnob>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* value = scene.get_component<Value>(entity);
+            auto* range = scene.get_component<NumberRange>(entity);
+
+            // Draw the wheel
+            const glm::vec2 center = (transform->top_left + transform->bottom_right) / 2.0f;
+            const glm::vec2 scale = center - transform->top_left;
+            double& val = value->get_as_ref<double>();
+            const float angle = 1.5f * 3.14159265359f + ((val - range->min) / (range->max - range->min) - 0.5f) * (1.75f * 3.14159265359f);
+            const glm::vec2 line_b = center + glm::vec2(cosf(angle), sinf(angle)) * scale;
+            renderer.draw_circle_solid(center, scale, { 1, 1, 1, 1 }, transform->depth + 0.0002f, transform->anchor);
+            renderer.draw_circle_line(center, scale, { 0, 0, 0, 1 }, 2, transform->depth + 0.0001f, transform->anchor);
+            renderer.draw_line(center, line_b, { 0, 0, 0, 1 }, 4, transform->depth + 0.0001f);
+        }
+        // Sliders
+        for (const auto entity : scene.view<Transform, Value, NumberRange, Slider>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* value = scene.get_component<Value>(entity);
+            auto* range = scene.get_component<NumberRange>(entity);
+            auto* text = scene.get_component<Text>(entity);
+            auto* draggable = scene.get_component<Draggable>(entity);
+
+            // Draw the slider
+            glm::vec2 bottom_right = transform->bottom_right;
+            if (text && draggable && draggable->is_horizontal == false) {
+                bottom_right.y -= renderer.get_font_height() * text->scale.y;
+            }
+            const glm::vec2 center = (transform->top_left + bottom_right) / 2.0f;
+            const glm::vec2 scale = center - transform->top_left;
+            double& val = value->get_as_ref<double>();
+            if (draggable && draggable->is_horizontal)
+            {
+                const float dist_left = ((val - range->min) / (range->max - range->min) - 0.5f) * 2 * scale.x;
+                renderer.draw_line(center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
+                renderer.draw_line(center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
+                renderer.draw_box_solid(center + glm::vec2{ dist_left - 10, -20 }, center + glm::vec2{ dist_left + 10, +20 }, { 1,1,1,1 });
+            }
+            else {
+                const float dist_bottom = ((val - range->min) / (range->max - range->min) - 0.5f) * 2 * -scale.y;
+                renderer.draw_line(center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
+                renderer.draw_line(center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
+                renderer.draw_box_solid(center + glm::vec2{ -20, dist_bottom - 10 }, center + glm::vec2{ +20, dist_bottom + 10 }, { 1,1,1,1 });
+            }
+        }
+    }
+    
+    inline void system_comp_mouse_interact(Scene& scene, Renderer& renderer, Input& input) {
         // Loop over all MouseInteract components, and handle the state. In this loop we also handle click events since that's literally 2 extra lines of code
         for (const auto entity : scene.view<Transform, MouseInteract>()) {
             const auto* transform = scene.get_component<Transform>(entity);
@@ -404,6 +492,7 @@ namespace Flan {
                 }
                 // Reset the MouseInteract state back to idle
                 mouse_interact->state = ClickState::idle;
+                input.mouse_visible(true);
             }
         }
 
@@ -412,18 +501,27 @@ namespace Flan {
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* value = scene.get_component<Value>(entity);
             auto* number_range = scene.get_component<NumberRange>(entity);
+            auto* draggable = scene.get_component<Draggable>(entity);
 
             // If the component is being dragged
             if (mouse_interact->state == ClickState::click) {
                 // Get a reference to the value
                 double& val = value->get_as_ref<double>();
 
-                // Map the vertical mouse movement to the value
-                val -= static_cast<double>(input.mouse_pos(MouseRelative::relative).y) * number_range->step;
+                // Map the mouse movement to the value
+                if (draggable && draggable->is_horizontal) {
+                    val += static_cast<double>(input.mouse_pos(MouseRelative::relative).x) * number_range->step;
+                }
+                else {
+                    val -= static_cast<double>(input.mouse_pos(MouseRelative::relative).y) * number_range->step;
+                }
 
                 // Clamp the value to the bounds
                 val = std::max(val, number_range->min);
                 val = std::min(val, number_range->max);
+
+                // Make the mouse invisible
+                input.mouse_visible(false);
             }
         }
 
@@ -448,33 +546,21 @@ namespace Flan {
         }
     }
 
-    inline void update_entities(Scene& scene, Renderer& renderer, const Input& input) {
+    inline void update_entities(Scene& scene, Renderer& renderer, Input& input) {
         // Render sprites
         system_comp_sprite(scene, renderer);
-
-        // Render special cases
-        {
-            for (const auto entity : scene.view<Transform, Value, NumberRange, WheelKnob>()) {
-                auto* transform = scene.get_component<Transform>(entity);
-                auto* value = scene.get_component<Value>(entity);
-                auto* range = scene.get_component<NumberRange>(entity);
-
-                // Draw the wheel
-                const glm::vec2 center = (transform->top_left + transform->bottom_right) / 2.0f;
-                const glm::vec2 scale = center - transform->top_left;
-                double& val = value->get_as_ref<double>();
-                const float angle = 1.5f * 3.14159265359f + ((val - range->min) / (range->max - range->min) - 0.5f) * (1.75f * 3.14159265359f);
-                const glm::vec2 line_b = center + glm::vec2(cosf(angle), sinf(angle)) * scale;
-                renderer.draw_circle_solid(center, scale, { 1, 1, 1, 1 }, 0.0001f, transform->anchor);
-                renderer.draw_circle_line(center, scale, { 0, 0, 0, 1 }, 2, 0.0001f, transform->anchor);
-                renderer.draw_line(center, line_b, { 0, 0, 0, 1 }, 8);
-            }
-        }
+        system_comp_special_render(scene, renderer);
 
         // Render text
         system_comp_text(scene, renderer);
 
         // Handle clickable components
         system_comp_mouse_interact(scene, renderer, input);
+
+        // Debug
+        for (const auto entity : scene.view<Transform>()) {
+            const auto* transform = scene.get_component<Transform>(entity);
+            renderer.draw_box_line(transform->top_left, transform->bottom_right, { 1, 0, 1, 1 }, 1, 0, transform->anchor);
+        }
     }
 }

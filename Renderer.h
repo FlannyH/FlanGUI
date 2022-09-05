@@ -96,6 +96,7 @@ namespace Flan {
         [[nodiscard]] glm::vec2 apply_anchor(glm::vec2 pos, AnchorPoint anchor);
         [[nodiscard]] glm::vec2 pixels_to_normalized(glm::vec2 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
         [[nodiscard]] glm::vec3 pixels_to_normalized(glm::vec3 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
+        [[nodiscsard]] float get_font_height() const { return _font.grid_h; }
     private:
 
         std::vector<Triangle> _flat_queue;

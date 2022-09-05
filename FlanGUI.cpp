@@ -36,6 +36,8 @@ int main()
     Flan::create_text(scene, "debug_text", { { 8, 8 }, {9, 9} }, { L"" });
     Flan::create_numberbox(scene, "debug_numberbox", { { 100, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
     Flan::create_wheelknob(scene, "debug_numberbox", { { 300, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
+    Flan::create_slider(scene, "debug_numberbox", { { 500, 300 }, { 600, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
+    Flan::create_slider(scene, "debug_numberbox", { { 600, 300 }, { 1000, 360 } }, { 0.0, 100.0, 1.0 }, 50.0);
 
     float smooth_dt = 0.0f;
     [[maybe_unused]] float time = 0.0f;
@@ -44,7 +46,6 @@ int main()
     while (!glfwWindowShouldClose(renderer.window())) {
         // Draw
         renderer.begin_frame();
-        renderer.draw_circle_line({ 0,0 }, { 300, 300 }, { 0,1,0,1 }, 4, 0.1f, Flan::AnchorPoint::center);
         const float dt = calculate_delta_time();
         time += dt;
         smooth_dt = smooth_dt + (dt - smooth_dt) * (1.f-powf(0.02f, dt));
