@@ -258,6 +258,7 @@ namespace Flan {
         scene.add_component<Value>(entity, { name, VarType::float64 });
         scene.add_component<NumberRange>(entity, range);
         scene.add_component<Draggable>(entity);
+        scene.add_component<Scrollable>(entity);
         scene.add_component<MouseInteract>(entity);
         scene.add_component<SpriteRender>(entity, { "numberbox.png", 1, TextureType::slice });
         scene.add_component<Text>(entity, text);
@@ -397,6 +398,26 @@ namespace Flan {
 
                 // Map the vertical mouse movement to the value
                 val -= static_cast<double>(input.mouse_pos(MouseRelative::relative).y) * number_range->step;
+
+                // Clamp the value to the bounds
+                val = std::max(val, number_range->min);
+                val = std::min(val, number_range->max);
+            }
+        }
+
+        // Handle scrollable components like sliders, numberboxes, listboxes
+        for (const auto entity : scene.view<Value, Scrollable, MouseInteract, NumberRange>()) {
+            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            auto* value = scene.get_component<Value>(entity);
+            auto* number_range = scene.get_component<NumberRange>(entity);
+
+            // If the component is hovered over
+            if (mouse_interact->state == ClickState::hover) {
+                // Get a reference to the value
+                double& val = value->get_as_ref<double>();
+
+                // Map the vertical mouse scroll to the value
+                val += static_cast<double>(input.mouse_wheel()) * number_range->step;
 
                 // Clamp the value to the bounds
                 val = std::max(val, number_range->min);
