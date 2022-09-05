@@ -71,7 +71,7 @@ namespace Flan {
     };
 
     struct Text {
-        Text(const std::wstring& string, const glm::vec2 scl = { 2, 2 }, const glm::vec4 col = { 1, 1, 1, 1 }, const AnchorPoint ui_anchr = AnchorPoint::top_left, const AnchorPoint txt_anchr = AnchorPoint::top_left) {
+        Text(const std::wstring& string = std::wstring(), const glm::vec2 scl = {2, 2}, const glm::vec4 col = {1, 1, 1, 1}, const AnchorPoint ui_anchr = AnchorPoint::top_left, const AnchorPoint txt_anchr = AnchorPoint::top_left) {
             text = new wchar_t[string.size()+1];
             memcpy_s(text, (string.size() + 1) * sizeof(string[0]), string.data(), (string.size() + 1) * sizeof(string[0]));
             ui_anchor = txt_anchr;
@@ -81,7 +81,6 @@ namespace Flan {
         }
 
         ~Text() {
-            puts("~Text()");
             delete[] text;
         }
 
@@ -212,22 +211,30 @@ namespace Flan {
     };
 
 
-    inline EntityID create_button(Scene& scene, const glm::vec2 top_left, const glm::vec2 bottom_right, std::function<void()> func, const float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left, const std::wstring& text = L"", glm::vec4 text_color = {1, 1, 1, 1}, glm::vec2 text_scale = {2, 2}) {
+    inline EntityID create_button(Scene& scene, 
+        const Transform& transform,
+        std::function<void()> func,
+        const Text& text = { L"", {2, 2}, {1, 1, 1, 1}, AnchorPoint::center, AnchorPoint::center }
+    ) {
         const EntityID entity = scene.new_entity();
-        scene.add_component<Transform>(entity, { top_left, bottom_right, depth, anchor });
+        scene.add_component<Transform>(entity, transform);
         scene.add_component<Clickable>(entity, {std::move(func)});
         scene.add_component<MouseInteract>(entity);
         scene.add_component<SpriteRender>(entity, { "button.png", 1, TextureType::slice });
-        scene.add_component<Text>(entity, { text, text_scale, text_color, AnchorPoint::center, AnchorPoint::center });
+        scene.add_component<Text>(entity, text);
         scene.add_component<Button>(entity);
         return entity;
     }
 
-    inline EntityID create_text(Scene& scene, const std::string& name, const glm::vec2 top_left, const glm::vec2 bottom_right, const std::wstring& text, glm::vec2 scale = { 1, 1 }, glm::vec4 color = { 1,1,1,1 }, const float depth = 0.0f, AnchorPoint ui_anchor_point = AnchorPoint::top_left, AnchorPoint text_anchor_point = AnchorPoint::top_left) {
+    inline EntityID create_text(Scene& scene,
+        const std::string& name,
+        const Transform& transform,
+        Text&& text
+    ) {
         // Create entity and add components
         const EntityID entity = scene.new_entity();
-        scene.add_component<Transform>(entity, { top_left, bottom_right, depth, ui_anchor_point });
-        scene.add_component<Text>(entity, { text, scale, color, text_anchor_point });
+        scene.add_component<Transform>(entity, transform);
+        scene.add_component<Text>(entity, std::move(text));
         scene.add_component<Value>(entity, { name, VarType::wstring });
 
         // Bind the text string to the variable name
@@ -239,28 +246,21 @@ namespace Flan {
     }
 
     inline EntityID create_numberbox(
-        Scene& scene, 
+        Scene& scene,
         const std::string& name,
-        const glm::vec2 top_left,
-        const glm::vec2 bottom_right,
-        const double min, 
-        const double max, 
-        const double step = 1.0,
+        const Transform& transform,
+        const NumberRange& range = {0.0, 100.0, 1.0},
         const double init_val = 0,
-        const glm::vec4 text_color = {1, 1, 1, 1},
-        const glm::vec2 text_scale = {2, 2},
-        const float depth = 0.0f,
-        AnchorPoint anchor = AnchorPoint::top_left, 
-        AnchorPoint text_anchor_point = AnchorPoint::center
+        const Text& text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::center, }
     ) {
         const EntityID entity = scene.new_entity();
-        scene.add_component<Transform>(entity, { top_left, bottom_right, depth, anchor });
+        scene.add_component<Transform>(entity, transform);
         scene.add_component<Value>(entity, { name, VarType::float64 });
-        scene.add_component<NumberRange>(entity, {min, max, step});
+        scene.add_component<NumberRange>(entity, range);
         scene.add_component<Draggable>(entity);
         scene.add_component<MouseInteract>(entity);
         scene.add_component<SpriteRender>(entity, { "numberbox.png", 1, TextureType::slice });
-        scene.add_component<Text>(entity, { L"", text_scale, text_color, AnchorPoint::center, text_anchor_point });
+        scene.add_component<Text>(entity, text);
         scene.get_component<Value>(entity)->set<double>(init_val);
         return entity;
     }

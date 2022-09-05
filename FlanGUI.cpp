@@ -29,20 +29,12 @@ int main()
     Flan::Input input(renderer.window());
 
     // Create button
-    Flan::create_button(scene, { -100, -150 }, { 100, -250 }, []()
+    Flan::create_button(scene, { { -100, -150 }, { 100, -250 }, 0.0f, Flan::AnchorPoint::center }, []()
         {
             printf("hi1!\n");
-        }, 0.0f, Flan::AnchorPoint::center, L"Button1", { 1, 0, 0, 1 });
-    Flan::create_button(scene, { -100, 50 }, { 100, -50 }, []()
-        {
-            printf("hi2!\n");
-        }, 0.0f, Flan::AnchorPoint::center, L"Button2", { 0, 0.5f, 0, 1 });
-    Flan::create_button(scene, { -100, 150 }, { 100, 50 }, []()
-        {
-            printf("hi3!\n");
-        }, 0.0f, Flan::AnchorPoint::center, L"Button3", {0, 0, 1, 1});
-    Flan::create_text(scene, "debug_text", { 8, 8 }, {9, 9}, L"");
-    Flan::create_numberbox(scene, "debug_numberbox", { 100, 600 }, { 200, 700 }, 0.0, 100.0, 1.0, 50.0, {1,1,1,1}, {1,1});
+        }, { L"Button1", {2, 2},  { 1, 0, 0, 1 }, Flan::AnchorPoint::center, Flan::AnchorPoint::center});
+    Flan::create_text(scene, "debug_text", { { 8, 8 }, {9, 9} }, { L"" });
+    Flan::create_numberbox(scene, "debug_numberbox", { { 100, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
 
     float smooth_dt = 0.0f;
     [[maybe_unused]] float time = 0.0f;
