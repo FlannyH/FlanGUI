@@ -38,10 +38,17 @@ int main()
     Flan::create_wheelknob(scene, "debug_numberbox", { { 300, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
     Flan::create_slider(scene, "debug_numberbox", { { 500, 300 }, { 600, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
     Flan::create_slider(scene, "debug_numberbox", { { 600, 300 }, { 1000, 360 } }, { 0.0, 100.0, 1.0 }, 50.0);
+    Flan::create_radio_button(scene, "debug_radio_button", { { 700, 400 }, { 1100, 640 } }, std::vector<std::wstring>({
+        L"hello", 
+        L"there",
+        L"i am",
+        L"a test",
+        L"ui element :)",
+        }), 0);
 
     float smooth_dt = 0.0f;
     [[maybe_unused]] float time = 0.0f;
-    wchar_t frametime_text[256];
+    wchar_t frametime_text[512];
 
     while (!glfwWindowShouldClose(renderer.window())) {
         // Draw
@@ -49,7 +56,7 @@ int main()
         const float dt = calculate_delta_time();
         time += dt;
         smooth_dt = smooth_dt + (dt - smooth_dt) * (1.f-powf(0.02f, dt));
-        swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps\nmouse_pos_absolute: %.0f, %.0f\nmouse_pos_window: %.0f, %.0f\nmouse_pos_relative: %.0f, %.0f\nmouse_buttons = %i%i%i\nmouse_down = %i%i%i\nmouse_up = %i%i%i\nmouse_wheel = %.0f\ndebug_numberbox = %f",
+        swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps\nmouse_pos_absolute: %.0f, %.0f\nmouse_pos_window: %.0f, %.0f\nmouse_pos_relative: %.0f, %.0f\nmouse_buttons = %i%i%i\nmouse_down = %i%i%i\nmouse_up = %i%i%i\nmouse_wheel = %.0f\ndebug_numberbox = %f\ndebug_radio_button = %f\n",
             smooth_dt * 1000.f, 
             1.0f/smooth_dt, 
             input.mouse_pos(Flan::MouseRelative::absolute).x, 
@@ -62,7 +69,8 @@ int main()
             input.mouse_down(0), input.mouse_down(1), input.mouse_down(2),
             input.mouse_up(0), input.mouse_up(1), input.mouse_up(2),
             input.mouse_wheel(),
-            Flan::Value::get<double>("debug_numberbox")
+            Flan::Value::get<double>("debug_numberbox"),
+            Flan::Value::get<double>("debug_radio_button")
         );
         Flan::Value::set_ptr("debug_text", &frametime_text);
         Flan::update_entities(scene, renderer, input);

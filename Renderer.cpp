@@ -658,6 +658,22 @@ namespace Flan {
         return glm::vec3(2, -2, 1) * (pos / glm::vec3(_res, 1)) + glm::vec3(anchor_offsets[static_cast<size_t>(anchor)], 0.f);
     }
 
+    glm::vec2 Renderer::apply_anchor_in_pixel_space(glm::vec2 pos, AnchorPoint anchor) const
+    {
+        glm::vec2 pixel_anchor_offsets[] = {
+            {0.5f, 0.5f},
+            {0.0f, 0.0f},
+            {0.5f, 0.0f},
+            {1.0f, 0.0f},
+            {1.0f, 0.5f},
+            {1.0f, 1.0f},
+            {0.5f, 1.0f},
+            {0.0f, 1.0f},
+            {0.0f, 0.5f},
+        };
+        return pos + (pixel_anchor_offsets[static_cast<size_t>(anchor)] * glm::vec2(_res)) / 2.0f;
+    }
+
     bool Renderer::load_texture(const std::string& path, Texture& handle) {
         // Load image
         int w, h, c;

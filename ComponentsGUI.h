@@ -120,6 +120,30 @@ namespace Flan {
         bool is_horizontal = false;
     };
 
+    struct Hitbox {  
+        // The minimum and maximum x and y coordinates of the hitbox, in pixels relative to the transform of the component.
+        // Note that the y-coordinate of the top of the hitbox is 0 and it increases as it goes down.
+        glm::vec2 top_left{}, bottom_right{};
+        bool intersects(glm::vec2 pos) {
+            return (
+                pos.x >= top_left.x &&
+                pos.x <= bottom_right.x &&
+                pos.y >= top_left.y &&
+                pos.y <= bottom_right.y
+            );
+        }
+    };
+
+    struct MultiHitbox {
+        Hitbox hitboxes[16]{};
+        size_t n_hitboxes;
+    };
+
+    struct RadioButton {
+        std::vector<std::wstring> options;
+        size_t current_selected_index = 0;
+    };
+
     struct Scrollable{}; // This is a tag without data
     struct NumberBox{}; // This is a tag without data
     struct Button{}; // This is a tag without data
@@ -327,6 +351,40 @@ namespace Flan {
         return entity;
     }
 
+    inline EntityID create_radio_button(
+        Scene& scene,
+        const std::string& name,
+        const Transform& transform,
+        std::vector<std::wstring> options,
+        const size_t initial_index = 0
+    )
+    {
+        // Create hitboxes for the radio buttons
+        MultiHitbox multihitbox{};
+        float curr_y = 0;
+        float delta_y = (transform.bottom_right.y - transform.top_left.y) / options.size();
+
+        // Populate hitboxes
+        for (size_t i = 0; i < options.size(); ++i) {
+            // Hitboxes
+            multihitbox.hitboxes[i].top_left.x = 0;
+            multihitbox.hitboxes[i].bottom_right.x = transform.bottom_right.x - transform.top_left.x;
+            multihitbox.hitboxes[i].top_left.y = curr_y;
+            multihitbox.hitboxes[i].bottom_right.y = curr_y + delta_y;
+            curr_y += delta_y;
+        }
+        multihitbox.n_hitboxes = options.size();
+
+        // Create entity
+        const EntityID entity = scene.new_entity();
+        scene.add_component<Transform>(entity, transform);
+        scene.add_component<Value>(entity, { name, VarType::float64 }); //todo: make add int type
+        scene.add_component<MultiHitbox>(entity, multihitbox);
+        scene.add_component<RadioButton>(entity, {options, initial_index});
+        scene.add_component<MouseInteract>(entity);
+        return entity;
+    }
+
     inline void system_comp_sprite(Scene& scene, Renderer& renderer) {
         for (const auto entity : scene.view<Transform, Sprites, SpriteRender>()) {
             const auto* transform = scene.get_component<Transform>(entity);
@@ -407,12 +465,13 @@ namespace Flan {
             const glm::vec2 center = (transform->top_left + transform->bottom_right) / 2.0f;
             const glm::vec2 scale = center - transform->top_left;
             double& val = value->get_as_ref<double>();
-            const float angle = 1.5f * 3.14159265359f + ((val - range->min) / (range->max - range->min) - 0.5f) * (1.75f * 3.14159265359f);
+            const float angle = static_cast<float>(1.5 * 3.14159265359 + ((val - range->min) / (range->max - range->min) - 0.5) * (1.75 * 3.14159265359));
             const glm::vec2 line_b = center + glm::vec2(cosf(angle), sinf(angle)) * scale;
             renderer.draw_circle_solid(center, scale, { 1, 1, 1, 1 }, transform->depth + 0.0002f, transform->anchor);
             renderer.draw_circle_line(center, scale, { 0, 0, 0, 1 }, 2, transform->depth + 0.0001f, transform->anchor);
             renderer.draw_line(center, line_b, { 0, 0, 0, 1 }, 4, transform->depth + 0.0001f);
         }
+
         // Sliders
         for (const auto entity : scene.view<Transform, Value, NumberRange, Slider>()) {
             auto* transform = scene.get_component<Transform>(entity);
@@ -431,16 +490,58 @@ namespace Flan {
             double& val = value->get_as_ref<double>();
             if (draggable && draggable->is_horizontal)
             {
-                const float dist_left = ((val - range->min) / (range->max - range->min) - 0.5f) * 2 * scale.x;
+                const float dist_left = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * scale.x;
                 renderer.draw_line(center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
                 renderer.draw_line(center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
                 renderer.draw_box_solid(center + glm::vec2{ dist_left - 10, -20 }, center + glm::vec2{ dist_left + 10, +20 }, { 1,1,1,1 });
             }
             else {
-                const float dist_bottom = ((val - range->min) / (range->max - range->min) - 0.5f) * 2 * -scale.y;
+                const float dist_bottom = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * -scale.y;
                 renderer.draw_line(center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
                 renderer.draw_line(center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
                 renderer.draw_box_solid(center + glm::vec2{ -20, dist_bottom - 10 }, center + glm::vec2{ +20, dist_bottom + 10 }, { 1,1,1,1 });
+            }
+        }
+
+        // Radio buttons
+        for (const auto entity : scene.view<Transform, Value, RadioButton>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* radio_button = scene.get_component<RadioButton>(entity);
+
+            // Get some information ready for the sake of my mental sanity in writing this code
+            size_t n_options = radio_button->options.size();
+            float vertical_spacing = (transform->bottom_right.y - transform->top_left.y) / n_options;
+            float margin = 2.0f;
+            float circle_size_max = vertical_spacing / 2.0f - margin;
+            glm::vec2 circle_base_offset = transform->top_left + glm::vec2(margin + circle_size_max);
+            float outline_circle_radius = 20;
+            float selected_circle_radius = 14;
+            float text_margin = 20;
+            
+            // Display every option
+            for (size_t i = 0; i < n_options; ++i) {
+                // Determine a nice color based on what the mouse is doing
+                glm::vec4 color = { 1, 1, 1, 1 };
+                const auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+                if (mouse_interact != nullptr && i == radio_button->current_selected_index) {
+                    if (mouse_interact->state == ClickState::hover) {
+                        color *= 0.9f;
+                    }
+                    if (mouse_interact->state == ClickState::click) {
+                        color *= 0.7f;
+                    }
+                }
+
+                // Draw the circle outline for each of them
+                renderer.draw_circle_line(circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(outline_circle_radius), color, 2.0f, transform->depth, transform->anchor);
+
+                // Draw the text
+                renderer.draw_text(radio_button->options[i], circle_base_offset + glm::vec2(0, vertical_spacing * i) + glm::vec2(outline_circle_radius + text_margin, 0), { 2, 2 }, color, transform->depth, AnchorPoint::top_left, AnchorPoint::left);
+
+                // Draw selected circle
+                if (i == radio_button->current_selected_index) {
+                    renderer.draw_circle_solid(circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(selected_circle_radius), color, transform->depth, transform->anchor);
+                }
             }
         }
     }
@@ -546,6 +647,41 @@ namespace Flan {
         }
     }
 
+    inline void system_comp_radio_buttons(Scene& scene, Renderer& renderer, Input& input) {
+        // Handle scrollable components like sliders, numberboxes, listboxes
+        for (const auto entity : scene.view<Transform, Value, RadioButton, MultiHitbox>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* value = scene.get_component<Value>(entity);
+            auto* radio_button = scene.get_component<RadioButton>(entity);
+            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+
+            // Make sure it also has a mouse interact component
+            if (mouse_interact == nullptr) {
+                continue;
+            }
+
+            // If the component is clicked on in general
+            if (input.mouse_down(0) && mouse_interact->state == ClickState::click) {
+                // Check for each hitbox
+                for (size_t i = 0; i < multi_hitbox->n_hitboxes; ++i) {
+                    // Transform the hitbox from local space to window space
+                    Hitbox hitbox = multi_hitbox->hitboxes[i];
+                    hitbox.top_left += renderer.apply_anchor_in_pixel_space(transform->top_left, transform->anchor);
+                    hitbox.bottom_right += renderer.apply_anchor_in_pixel_space(transform->top_left, transform->anchor);
+
+                    // See if it intersects
+                    if (hitbox.intersects(input.mouse_pos(MouseRelative::window)))
+                    {
+                        // If so, select that value
+                        radio_button->current_selected_index = i;
+                        value->get_as_ref<double>() = static_cast<double>(i);
+                    }
+                }
+            }
+        }
+    }
+
     inline void update_entities(Scene& scene, Renderer& renderer, Input& input) {
         // Render sprites
         system_comp_sprite(scene, renderer);
@@ -556,6 +692,9 @@ namespace Flan {
 
         // Handle clickable components
         system_comp_mouse_interact(scene, renderer, input);
+
+        // Handle radio buttons
+        system_comp_radio_buttons(scene, renderer, input);
 
         // Debug
         for (const auto entity : scene.view<Transform>()) {
