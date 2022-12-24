@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <utility>
+#include <cmath>
 
 #include "ComponentSystem.h"
 #include "Input.h"
@@ -22,7 +23,7 @@
 
 namespace Flan {
     struct Transform {
-        Transform(const glm::vec2 tl, const glm::vec2 br, const float dpth = 0.0f, const AnchorPoint anch = AnchorPoint::top_left) {
+        Transform(const glm::vec2 tl, const glm::vec2 br, const float dpth = 0.5f, const AnchorPoint anch = AnchorPoint::top_left) {
             const float x_min = std::min(tl.x, br.x);
             const float x_max = std::max(tl.x, br.x);
             const float y_min = std::min(tl.y, br.y);
@@ -136,11 +137,22 @@ namespace Flan {
 
     struct MultiHitbox {
         Hitbox hitboxes[16]{};
+        ClickState click_states[16]{};
         size_t n_hitboxes;
     };
 
     struct RadioButton {
         std::vector<std::wstring> options;
+        size_t current_selected_index = 0;
+    };
+
+    struct Combobox {
+        std::vector<std::wstring> list_items;
+        float button_height = 60.0f;
+        float list_height = 360.0f;
+        float item_height = 60.0f;
+        float current_scroll_position = 0.0f;
+        bool is_list_open = false;
         size_t current_selected_index = 0;
     };
 
@@ -385,6 +397,43 @@ namespace Flan {
         return entity;
     }
 
+    inline EntityID create_combobox(
+        Scene& scene,
+        const std::string& name,
+        const Transform& transform,
+        std::vector<std::wstring> items,
+        const size_t initial_index = 0,
+        const float item_height = 60.0f,
+        const float list_height = 360.0f
+    )
+    {
+        // Create hitboxes
+        MultiHitbox multi_hitbox{};
+        multi_hitbox.hitboxes[0].top_left = { 0, 0 };
+        multi_hitbox.hitboxes[0].bottom_right = transform.bottom_right - transform.top_left;
+        multi_hitbox.hitboxes[1].top_left = { 0, transform.bottom_right.y };
+        multi_hitbox.hitboxes[1].bottom_right = { transform.top_left.x, transform.bottom_right.y + list_height };
+        multi_hitbox.n_hitboxes = 2;
+
+        // Create combobox component
+        Combobox combobox{};
+        combobox.is_list_open = false;
+        combobox.item_height = item_height;
+        combobox.list_height = list_height;
+        combobox.current_selected_index = initial_index;
+        combobox.current_scroll_position = 0.0f;
+        combobox.list_items = items;
+
+        // Create entity
+        const EntityID entity = scene.new_entity();
+        scene.add_component<Transform>(entity, transform);
+        scene.add_component<Value>(entity, { name, VarType::float64 }); //todo: make add int type
+        scene.add_component<MouseInteract>(entity);
+        scene.add_component<MultiHitbox>(entity, multi_hitbox);
+        scene.add_component<Combobox>(entity, combobox);
+        return entity;
+    }
+
     inline void system_comp_sprite(Scene& scene, Renderer& renderer) {
         for (const auto entity : scene.view<Transform, Sprites, SpriteRender>()) {
             const auto* transform = scene.get_component<Transform>(entity);
@@ -454,7 +503,7 @@ namespace Flan {
         }
     }
 
-    inline void system_comp_special_render(Scene& scene, Renderer& renderer) {
+    inline void system_comp_special_render(Scene& scene, Renderer& renderer, Input& input) {
         // Wheel knobs
         for (const auto entity : scene.view<Transform, Value, NumberRange, WheelKnob>()) {
             auto* transform = scene.get_component<Transform>(entity);
@@ -522,15 +571,16 @@ namespace Flan {
             for (size_t i = 0; i < n_options; ++i) {
                 // Determine a nice color based on what the mouse is doing
                 glm::vec4 color = { 1, 1, 1, 1 };
-                const auto* mouse_interact = scene.get_component<MouseInteract>(entity);
-                if (mouse_interact != nullptr && i == radio_button->current_selected_index) {
-                    if (mouse_interact->state == ClickState::hover) {
+                const auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+                //if (multi_hitbox != nullptr && i == radio_button->current_selected_index) {
+                if (multi_hitbox != nullptr) {
+                    if (multi_hitbox->click_states[i] == ClickState::hover) {
                         color *= 0.9f;
                     }
-                    if (mouse_interact->state == ClickState::click) {
+                    if (multi_hitbox->click_states[i] == ClickState::click) {
                         color *= 0.7f;
                     }
-                }
+                };
 
                 // Draw the circle outline for each of them
                 renderer.draw_circle_line(circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(outline_circle_radius), color, 2.0f, transform->depth, transform->anchor);
@@ -541,6 +591,83 @@ namespace Flan {
                 // Draw selected circle
                 if (i == radio_button->current_selected_index) {
                     renderer.draw_circle_solid(circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(selected_circle_radius), color, transform->depth, transform->anchor);
+                }
+            }
+        }
+
+        // Combobox
+        for (const auto entity : scene.view<Transform, Combobox, MultiHitbox>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* combobox = scene.get_component<Combobox>(entity);
+            auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+
+            // Determine a nice color based on what the mouse is doing
+            glm::vec4 top_color = { 1, 1, 1, 1 };
+
+            // todo: use actual color schemes instead of hard coded magic numbers
+            if (multi_hitbox->click_states[0] == ClickState::hover) {
+                top_color *= 0.9f;
+            }
+            if (multi_hitbox->click_states[0] == ClickState::click) {
+                top_color *= 0.7f;
+            }
+
+            // Render the button
+            glm::vec2 box_top_left = transform->top_left;
+            glm::vec2 box_bottom_right = { transform->bottom_right.x, transform->top_left.y + combobox->button_height };
+            glm::vec2 arrow_center = { transform->bottom_right.x - 30.f, transform->top_left.y + (combobox->button_height / 2) + 8 };
+            glm::vec2 text_offset = { 8, -20 + transform->top_left.y + (combobox->button_height / 2) };
+            glm::vec2 arrow_offset = { 16, -16 };
+            renderer.draw_box_solid(box_top_left, box_bottom_right, top_color, transform->depth + 0.01f, transform->anchor);
+            renderer.draw_box_line(box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth, 0, transform->anchor);
+            renderer.draw_text(combobox->list_items[combobox->current_selected_index], transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
+            renderer.draw_line(arrow_center, arrow_center + arrow_offset * glm::vec2(+1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
+            renderer.draw_line(arrow_center, arrow_center + arrow_offset * glm::vec2(-1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
+
+            // Render the list if necessary
+            size_t start_index = combobox->current_scroll_position / combobox->list_items.size();
+            if (abs(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
+                for (size_t i = 0; i < combobox->list_height / combobox->item_height; ++i)
+                {
+                    // Stop if end of list was reached
+                    if (start_index + i >= combobox->list_items.size())
+                        break;
+
+                    // Get transform information
+                    box_top_left = transform->top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * i));
+                    box_bottom_right = { transform->bottom_right.x, box_top_left.y + combobox->item_height };
+                    text_offset = { 8, -20 + transform->top_left.y + (combobox->button_height / 2.0f) };
+
+                    // Stop if the top is past the transform (and thus off screen)
+                    if (box_top_left.y > transform->bottom_right.y)
+                        break;
+
+                    // Also stop if the bottom is above the button's bottom
+                    if (box_bottom_right.y < transform->top_left.y + combobox->button_height)
+                        continue;
+
+                    // Determine a nice color based on what the mouse is doing
+                    glm::vec4 color = { 1, 1, 1, 1 };
+
+                    // Create a hitbox for the current item
+                    Hitbox curr_item_hitbox{};
+                    curr_item_hitbox.top_left = renderer.apply_anchor_in_pixel_space(box_top_left, transform->anchor);
+                    curr_item_hitbox.bottom_right = renderer.apply_anchor_in_pixel_space(box_bottom_right, transform->anchor);
+
+                    // If the mouse is over it, change the color based on the mouse
+                    if (curr_item_hitbox.intersects(input.mouse_pos(MouseRelative::window))) {
+                        if (multi_hitbox->click_states[1] == ClickState::hover) {
+                            color *= 0.9f;
+                        }
+                        if (multi_hitbox->click_states[1] == ClickState::click) {
+                            color *= 0.7f;
+                        }
+                    }
+
+                    // Draw the boxes
+                    renderer.draw_box_solid(box_top_left + glm::vec2(+1, 0), box_bottom_right + glm::vec2(-1, -1), color, transform->depth + 0.01f, transform->anchor);
+                    renderer.draw_box_line(box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth + 0.01f, 0, transform->anchor);
+                    renderer.draw_text(combobox->list_items[start_index + i], box_top_left + text_offset, { 2, 2 }, { 0, 0, 0, 1 }, transform->depth, transform->anchor, AnchorPoint::left);
                 }
             }
         }
@@ -597,6 +724,39 @@ namespace Flan {
             }
         }
 
+        // Handle multi-hitbox components
+        for (const auto entity : scene.view<Transform, MultiHitbox>()) {
+            const auto* transform = scene.get_component<Transform>(entity);
+            auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+
+            // Check for each hitbox
+            for (size_t i = 0; i < multi_hitbox->n_hitboxes; ++i) {
+                // Transform the hitbox from local space to window space
+                Hitbox hitbox = multi_hitbox->hitboxes[i];
+                hitbox.top_left += renderer.apply_anchor_in_pixel_space(transform->top_left, transform->anchor);
+                hitbox.bottom_right += renderer.apply_anchor_in_pixel_space(transform->top_left, transform->anchor);
+
+                // See if it intersects
+                if (hitbox.intersects(input.mouse_pos(MouseRelative::window)))
+                {
+                    // If the user is clicking
+                    if (input.mouse_held(0)) {
+                        multi_hitbox->click_states[i] = ClickState::click;
+                    }
+
+                    // Otherwise hover
+                    else {
+                        multi_hitbox->click_states[i] = ClickState::hover;
+                    }
+                }
+                else {
+                    multi_hitbox->click_states[i] = ClickState::idle;
+                }
+            }
+        }
+    }
+
+    inline void system_comp_draggable_clickable(Scene& scene, Renderer& renderer, Input& input) {
         // Handle draggable components like sliders, numberboxes,
         for (const auto entity : scene.view<Value, Draggable, MouseInteract, NumberRange>()) {
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
@@ -626,7 +786,7 @@ namespace Flan {
             }
         }
 
-        // Handle scrollable components like sliders, numberboxes, listboxes
+        // Handle scrollable components like sliders, numberboxes
         for (const auto entity : scene.view<Value, Scrollable, MouseInteract, NumberRange>()) {
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* value = scene.get_component<Value>(entity);
@@ -648,7 +808,7 @@ namespace Flan {
     }
 
     inline void system_comp_radio_buttons(Scene& scene, Renderer& renderer, Input& input) {
-        // Handle scrollable components like sliders, numberboxes, listboxes
+        // Handle radio buttons
         for (const auto entity : scene.view<Transform, Value, RadioButton, MultiHitbox>()) {
             auto* transform = scene.get_component<Transform>(entity);
             auto* value = scene.get_component<Value>(entity);
@@ -682,10 +842,55 @@ namespace Flan {
         }
     }
 
+    inline void system_comp_combobox(Scene& scene, Renderer& renderer, Input& input, bool& combobox_handled) {
+        // Handle radio buttons
+        for (const auto entity : scene.view<Transform, Value, Combobox, MultiHitbox>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* value = scene.get_component<Value>(entity);
+            auto* combobox = scene.get_component<Combobox>(entity);
+            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+
+            // Make sure it also has a mouse interact component
+            if (mouse_interact == nullptr) {
+                continue;
+            }
+
+            // If the mouse is clicked on in general
+            if (input.mouse_down(0)) {
+                // If it's the top part of the combobox, toggle it
+                if (multi_hitbox->click_states[0] == ClickState::click) {
+                    combobox->is_list_open = !combobox->is_list_open;
+                    combobox_handled = true;
+                    printf("%s combobox\n", combobox->is_list_open ? "opening" : "closing");
+                }
+
+                // If it's the bottom part of the combobox, figure out what item we pressed
+
+
+                // If it's outside the combobox in general, close it
+                else if (combobox->is_list_open){
+                    combobox->is_list_open = false;
+                    combobox_handled = true;
+                    printf("%s combobox\n", combobox->is_list_open ? "opening" : "closing");
+                }
+            }
+
+            // Make sure we have full focus when the mouse is on it
+            if (mouse_interact->state != ClickState::idle) {
+                combobox_handled = true;
+            }
+
+            // Handle transform
+            float target_bottom = transform->top_left.y + combobox->button_height + (combobox->is_list_open * combobox->list_height);
+            transform->bottom_right.y = std::lerp(transform->bottom_right.y, target_bottom, 0.01f);
+        }
+    }
+
     inline void update_entities(Scene& scene, Renderer& renderer, Input& input) {
         // Render sprites
         system_comp_sprite(scene, renderer);
-        system_comp_special_render(scene, renderer);
+        system_comp_special_render(scene, renderer, input);
 
         // Render text
         system_comp_text(scene, renderer);
@@ -693,8 +898,17 @@ namespace Flan {
         // Handle clickable components
         system_comp_mouse_interact(scene, renderer, input);
 
-        // Handle radio buttons
-        system_comp_radio_buttons(scene, renderer, input);
+        // Handle comboboxes - special case: if a combobox is interacted with, don't handle any other ones
+        bool combobox_handled = false;
+        system_comp_combobox(scene, renderer, input, combobox_handled);
+
+        if (combobox_handled == false) {
+            // Handle other mouse interactable components
+            system_comp_draggable_clickable(scene, renderer, input);
+
+            // Handle radio buttons
+            system_comp_radio_buttons(scene, renderer, input);
+        }
 
         // Debug
         for (const auto entity : scene.view<Transform>()) {

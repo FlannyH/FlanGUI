@@ -17,10 +17,6 @@ static float calculate_delta_time()
     return delta.count();
 }
 
-struct Transform {
-    glm::vec2 pos;
-};
-
 int main()
 {
     Flan::Renderer renderer;
@@ -45,6 +41,15 @@ int main()
         L"a test",
         L"ui element :)",
         }), 0);
+    800, 24;
+    Flan::create_combobox(scene, "debug_combobox", { {800, 20}, {1200, 80}, 0.01f }, std::vector<std::wstring>({
+        L"Option 1",
+        L"Option 2",
+        L"Option 3",
+        L"Option 4",
+        L"Option 5",
+        })
+    );
 
     float smooth_dt = 0.0f;
     [[maybe_unused]] float time = 0.0f;
