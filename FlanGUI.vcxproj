@@ -176,6 +176,7 @@
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommonStructs.h" />
     <ClInclude Include="ComponentSystem.h" />
     <ClInclude Include="External\include\entt\entt.hpp" />
     <ClInclude Include="External\include\glfw\glfw3.h" />

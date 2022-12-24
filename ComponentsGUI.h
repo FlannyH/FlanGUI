@@ -7,6 +7,7 @@
 #include "Input.h"
 #include "Renderer.h"
 #include "glm/vec2.hpp"
+#include "CommonStructs.h"
 //
 //inline void* operator new(size_t size) {
 //    void* ptr = malloc(size);
@@ -22,22 +23,6 @@
 #define N_VALUES 256
 
 namespace Flan {
-    struct Transform {
-        Transform(const glm::vec2 tl, const glm::vec2 br, const float dpth = 0.5f, const AnchorPoint anch = AnchorPoint::top_left) {
-            const float x_min = std::min(tl.x, br.x);
-            const float x_max = std::max(tl.x, br.x);
-            const float y_min = std::min(tl.y, br.y);
-            const float y_max = std::max(tl.y, br.y);
-            top_left = {x_min, y_min};
-            bottom_right = { x_max, y_max };
-            anchor = anch;
-            depth = dpth;
-        }
-        glm::vec2 top_left{}, bottom_right{};
-        float depth{};
-        AnchorPoint anchor{};
-    };
-
     enum class ClickState {
         idle = 0,
         hover,
@@ -448,7 +433,7 @@ namespace Flan {
                     color *= 0.7f;
                 }
             }
-            renderer.draw_box_textured(sprite->sprites[0].tex_path, sprite->sprites[0].tex_type, transform->top_left, transform->bottom_right, color, transform->depth + 0.001f, transform->anchor);
+            renderer.draw_box_textured(*transform, sprite->sprites[0].tex_path, sprite->sprites[0].tex_type, transform->top_left, transform->bottom_right, color, transform->depth + 0.001f, transform->anchor);
         }
     }
 
@@ -498,8 +483,8 @@ namespace Flan {
             // Calculate position relative to top_left
             const glm::vec2 top_left = transform->top_left + glm::vec2(renderer.resolution()) * anchor_offsets[static_cast<size_t>(transform->anchor)];
             const glm::vec2 offset_from_top_left = (transform->bottom_right - transform->top_left) * anchor_offsets[static_cast<size_t>(text->ui_anchor)];
-            renderer.draw_text(text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
-            renderer.draw_circle_solid(top_left, { 4,4 }, { 1,0,1,1 });
+            renderer.draw_text(*transform, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
+            renderer.draw_circle_solid(*transform, top_left, { 4,4 }, { 1,0,1,1 });
         }
     }
 
@@ -516,9 +501,9 @@ namespace Flan {
             double& val = value->get_as_ref<double>();
             const float angle = static_cast<float>(1.5 * 3.14159265359 + ((val - range->min) / (range->max - range->min) - 0.5) * (1.75 * 3.14159265359));
             const glm::vec2 line_b = center + glm::vec2(cosf(angle), sinf(angle)) * scale;
-            renderer.draw_circle_solid(center, scale, { 1, 1, 1, 1 }, transform->depth + 0.0002f, transform->anchor);
-            renderer.draw_circle_line(center, scale, { 0, 0, 0, 1 }, 2, transform->depth + 0.0001f, transform->anchor);
-            renderer.draw_line(center, line_b, { 0, 0, 0, 1 }, 4, transform->depth + 0.0001f);
+            renderer.draw_circle_solid(*transform, center, scale, { 1, 1, 1, 1 }, transform->depth + 0.0002f, transform->anchor);
+            renderer.draw_circle_line(*transform, center, scale, { 0, 0, 0, 1 }, 2, transform->depth + 0.0001f, transform->anchor);
+            renderer.draw_line(*transform, center, line_b, { 0, 0, 0, 1 }, 4, transform->depth + 0.0001f);
         }
 
         // Sliders
@@ -540,15 +525,15 @@ namespace Flan {
             if (draggable && draggable->is_horizontal)
             {
                 const float dist_left = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * scale.x;
-                renderer.draw_line(center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
-                renderer.draw_line(center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
-                renderer.draw_box_solid(center + glm::vec2{ dist_left - 10, -20 }, center + glm::vec2{ dist_left + 10, +20 }, { 1,1,1,1 });
+                renderer.draw_line(*transform, center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
+                renderer.draw_line(*transform, center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
+                renderer.draw_box_solid(*transform, center + glm::vec2{ dist_left - 10, -20 }, center + glm::vec2{ dist_left + 10, +20 }, { 1,1,1,1 });
             }
             else {
                 const float dist_bottom = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * -scale.y;
-                renderer.draw_line(center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
-                renderer.draw_line(center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
-                renderer.draw_box_solid(center + glm::vec2{ -20, dist_bottom - 10 }, center + glm::vec2{ +20, dist_bottom + 10 }, { 1,1,1,1 });
+                renderer.draw_line(*transform, center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
+                renderer.draw_line(*transform, center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
+                renderer.draw_box_solid(*transform, center + glm::vec2{ -20, dist_bottom - 10 }, center + glm::vec2{ +20, dist_bottom + 10 }, { 1,1,1,1 });
             }
         }
 
@@ -583,23 +568,24 @@ namespace Flan {
                 };
 
                 // Draw the circle outline for each of them
-                renderer.draw_circle_line(circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(outline_circle_radius), color, 2.0f, transform->depth, transform->anchor);
+                renderer.draw_circle_line(*transform, circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(outline_circle_radius), color, 2.0f, transform->depth, transform->anchor);
 
                 // Draw the text
-                renderer.draw_text(radio_button->options[i], circle_base_offset + glm::vec2(0, vertical_spacing * i) + glm::vec2(outline_circle_radius + text_margin, 0), { 2, 2 }, color, transform->depth, AnchorPoint::top_left, AnchorPoint::left);
+                renderer.draw_text(*transform, radio_button->options[i], circle_base_offset + glm::vec2(0, vertical_spacing * i) + glm::vec2(outline_circle_radius + text_margin, 0), { 2, 2 }, color, transform->depth, AnchorPoint::top_left, AnchorPoint::left);
 
                 // Draw selected circle
                 if (i == radio_button->current_selected_index) {
-                    renderer.draw_circle_solid(circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(selected_circle_radius), color, transform->depth, transform->anchor);
+                    renderer.draw_circle_solid(*transform, circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(selected_circle_radius), color, transform->depth, transform->anchor);
                 }
             }
         }
 
         // Combobox
-        for (const auto entity : scene.view<Transform, Combobox, MultiHitbox>()) {
+        for (const auto entity : scene.view<Transform, Combobox, MultiHitbox, Value>()) {
             auto* transform = scene.get_component<Transform>(entity);
             auto* combobox = scene.get_component<Combobox>(entity);
             auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+            auto* value = scene.get_component<Value>(entity);
 
             // Determine a nice color based on what the mouse is doing
             glm::vec4 top_color = { 1, 1, 1, 1 };
@@ -618,14 +604,14 @@ namespace Flan {
             glm::vec2 arrow_center = { transform->bottom_right.x - 30.f, transform->top_left.y + (combobox->button_height / 2) + 8 };
             glm::vec2 text_offset = { 8, -20 + transform->top_left.y + (combobox->button_height / 2) };
             glm::vec2 arrow_offset = { 16, -16 };
-            renderer.draw_box_solid(box_top_left, box_bottom_right, top_color, transform->depth + 0.01f, transform->anchor);
-            renderer.draw_box_line(box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth, 0, transform->anchor);
-            renderer.draw_text(combobox->list_items[combobox->current_selected_index], transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
-            renderer.draw_line(arrow_center, arrow_center + arrow_offset * glm::vec2(+1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
-            renderer.draw_line(arrow_center, arrow_center + arrow_offset * glm::vec2(-1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
+            renderer.draw_box_solid(*transform, box_top_left, box_bottom_right, top_color, transform->depth + 0.01f, transform->anchor);
+            renderer.draw_box_line(*transform, box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth, 0, transform->anchor);
+            renderer.draw_text(*transform, combobox->list_items[combobox->current_selected_index], transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
+            renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(+1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
+            renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(-1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
 
             // Render the list if necessary
-            size_t start_index = combobox->current_scroll_position / combobox->list_items.size();
+            size_t start_index = static_cast<size_t>(combobox->current_scroll_position / combobox->list_items.size());
             if (abs(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
                 for (size_t i = 0; i < combobox->list_height / combobox->item_height; ++i)
                 {
@@ -660,14 +646,22 @@ namespace Flan {
                             color *= 0.9f;
                         }
                         if (multi_hitbox->click_states[1] == ClickState::click) {
+                            // This is a bit cursed, but it'll have to do
+                            // We will actually update the combobox selected index in the rendering code, since we already do a ton of logic here to figure out where the mouse is anyway
                             color *= 0.7f;
+                            combobox->current_selected_index = i;
+                            combobox->is_list_open = false;
+                            value->get_as_ref<double>() = static_cast<double>(i);
+                            break;
                         }
                     }
 
+
+
                     // Draw the boxes
-                    renderer.draw_box_solid(box_top_left + glm::vec2(+1, 0), box_bottom_right + glm::vec2(-1, -1), color, transform->depth + 0.01f, transform->anchor);
-                    renderer.draw_box_line(box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth + 0.01f, 0, transform->anchor);
-                    renderer.draw_text(combobox->list_items[start_index + i], box_top_left + text_offset, { 2, 2 }, { 0, 0, 0, 1 }, transform->depth, transform->anchor, AnchorPoint::left);
+                    renderer.draw_box_solid(*transform, box_top_left + glm::vec2(+1, 0), box_bottom_right + glm::vec2(-1, -1), color, transform->depth + 0.01f, transform->anchor);
+                    renderer.draw_box_line(*transform, box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth + 0.01f, 0, transform->anchor);
+                    renderer.draw_text(*transform, combobox->list_items[start_index + i], box_top_left + text_offset, { 2, 2 }, { 0, 0, 0, 1 }, transform->depth, transform->anchor, AnchorPoint::left);
                 }
             }
         }
@@ -756,7 +750,7 @@ namespace Flan {
         }
     }
 
-    inline void system_comp_draggable_clickable(Scene& scene, Renderer& renderer, Input& input) {
+    inline void system_comp_draggable_clickable(Scene& scene, Input& input) {
         // Handle draggable components like sliders, numberboxes,
         for (const auto entity : scene.view<Value, Draggable, MouseInteract, NumberRange>()) {
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
@@ -842,11 +836,10 @@ namespace Flan {
         }
     }
 
-    inline void system_comp_combobox(Scene& scene, Renderer& renderer, Input& input, bool& combobox_handled) {
+    inline void system_comp_combobox(Scene& scene, Input& input, float delta_time, bool& combobox_handled) {
         // Handle radio buttons
         for (const auto entity : scene.view<Transform, Value, Combobox, MultiHitbox>()) {
             auto* transform = scene.get_component<Transform>(entity);
-            auto* value = scene.get_component<Value>(entity);
             auto* combobox = scene.get_component<Combobox>(entity);
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
@@ -883,11 +876,11 @@ namespace Flan {
 
             // Handle transform
             float target_bottom = transform->top_left.y + combobox->button_height + (combobox->is_list_open * combobox->list_height);
-            transform->bottom_right.y = std::lerp(transform->bottom_right.y, target_bottom, 0.01f);
+            transform->bottom_right.y = std::lerp(transform->bottom_right.y, target_bottom, 1.0f - pow(2.0f, -delta_time * 75.0f));
         }
     }
 
-    inline void update_entities(Scene& scene, Renderer& renderer, Input& input) {
+    inline void update_entities(Scene& scene, Renderer& renderer, Input& input, float delta_time) {
         // Render sprites
         system_comp_sprite(scene, renderer);
         system_comp_special_render(scene, renderer, input);
@@ -900,11 +893,11 @@ namespace Flan {
 
         // Handle comboboxes - special case: if a combobox is interacted with, don't handle any other ones
         bool combobox_handled = false;
-        system_comp_combobox(scene, renderer, input, combobox_handled);
+        system_comp_combobox(scene, input, delta_time, combobox_handled);
 
         if (combobox_handled == false) {
             // Handle other mouse interactable components
-            system_comp_draggable_clickable(scene, renderer, input);
+            system_comp_draggable_clickable(scene, input);
 
             // Handle radio buttons
             system_comp_radio_buttons(scene, renderer, input);
@@ -913,7 +906,7 @@ namespace Flan {
         // Debug
         for (const auto entity : scene.view<Transform>()) {
             const auto* transform = scene.get_component<Transform>(entity);
-            renderer.draw_box_line(transform->top_left, transform->bottom_right, { 1, 0, 1, 1 }, 1, 0, transform->anchor);
+            renderer.draw_box_line(*transform, transform->top_left, transform->bottom_right, { 1, 0, 1, 1 }, 1, 0, transform->anchor);
         }
     }
 }

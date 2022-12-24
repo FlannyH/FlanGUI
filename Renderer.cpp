@@ -211,12 +211,14 @@ namespace Flan {
         glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 
         // Setup vertex array
-        glVertexAttribPointer(0, sizeof(Vertex::pos  ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, pos  .x)));
-        glVertexAttribPointer(1, sizeof(Vertex::tc   ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, tc   .x)));
-        glVertexAttribPointer(2, sizeof(Vertex::color) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, color.x)));
+        glVertexAttribPointer(0, sizeof(Vertex::pos      ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, pos      .x)));
+        glVertexAttribPointer(1, sizeof(Vertex::tc       ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, tc       .x)));
+        glVertexAttribPointer(2, sizeof(Vertex::color    ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, color    .x)));
+        glVertexAttribPointer(3, sizeof(Vertex::clip_rect) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, clip_rect.x)));
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
+        glEnableVertexAttribArray(3);
         glBindVertexArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
@@ -250,6 +252,10 @@ namespace Flan {
     }
 
     void Renderer::end_frame() const {
+        // Set resolution uniform
+        auto location = glGetUniformLocation(_shader, "resolution");
+        glUniform2iv(location, 1, &_res.x);
+
         // Render flat triangle queue
         glUseProgram(_shader);
         glBindTexture(GL_TEXTURE_2D, _font.texture_id);
@@ -274,7 +280,7 @@ namespace Flan {
         glfwSwapBuffers(_window);
     }
 
-    void Renderer::draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width, float depth, AnchorPoint anchor) {
+    void Renderer::draw_line(Transform transform, glm::vec2 a, glm::vec2 b, glm::vec4 color, float width, float depth, AnchorPoint anchor) {
         Vertex v1{}, v2{}, v3{}, v4{};
 
         // Calculate normal
@@ -295,11 +301,15 @@ namespace Flan {
         v2.color = color;
         v3.color = color;
         v4.color = color;
+        v1.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
+        v2.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
+        v3.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
+        v4.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
         _flat_queue.push_back({v1, v3, v2});
         _flat_queue.push_back({v1, v4, v3});
     }
 
-    void Renderer::draw_box_line(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
+    void Renderer::draw_box_line(Transform transform, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
         // Derive corners of the box
         const glm::vec2 tl = top_left;
         const glm::vec2 br = bottom_right;
@@ -309,13 +319,13 @@ namespace Flan {
         // Draw the lines
         const glm::vec2 x = { width, 0 };
         const glm::vec2 y = { x.y, x.x };
-        draw_line(tl - x, tr + x, color, width, depth, anchor);
-        draw_line(tr + y, br - y, color, width, depth, anchor);
-        draw_line(br + x, bl - x, color, width, depth, anchor);
-        draw_line(bl - y, tl + y, color, width, depth, anchor);
+        draw_line(transform, tl - x, tr + x, color, width, depth, anchor);
+        draw_line(transform, tr + y, br - y, color, width, depth, anchor);
+        draw_line(transform, br + x, bl - x, color, width, depth, anchor);
+        draw_line(transform, bl - y, tl + y, color, width, depth, anchor);
     }
 
-    void Renderer::draw_circle_line(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
+    void Renderer::draw_circle_line(Transform transform, const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
         std::vector<glm::vec2> points(SINE_LUT_RESOLUTION);
 
         // Generate points
@@ -327,11 +337,11 @@ namespace Flan {
 
         // Draw lines
         for (int i = 0; i < SINE_LUT_RESOLUTION; i++) {
-            draw_line(points[i], points[(i + 1) % SINE_LUT_RESOLUTION], color, width, depth, anchor);
+            draw_line(transform, points[i], points[(i + 1) % SINE_LUT_RESOLUTION], color, width, depth, anchor);
         }
     }
 
-    void Renderer::draw_circle_solid(const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float depth, const AnchorPoint anchor) {
+    void Renderer::draw_circle_solid(Transform transform, const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float depth, const AnchorPoint anchor) {
         std::vector<glm::vec2> points(SINE_LUT_RESOLUTION);
 
         // Generate points
@@ -348,10 +358,10 @@ namespace Flan {
         }
 
         // Draw polygon
-        draw_flat_polygon(verts, anchor);
+        draw_flat_polygon(transform, verts, anchor);
     }
 
-    void Renderer::draw_box_solid(const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float depth, const AnchorPoint anchor) {
+    void Renderer::draw_box_solid(Transform transform, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, float depth, const AnchorPoint anchor) {
         // Derive corners of the box
         glm::vec2 tl = top_left;
         glm::vec2 br = bottom_right;
@@ -365,10 +375,10 @@ namespace Flan {
             { {br, depth}, {0, 1}, color },
             { {bl, depth}, {0, 0}, color }
         });
-        draw_flat_polygon(verts, anchor);
+        draw_flat_polygon(transform, verts, anchor);
     }
 
-    void Renderer::draw_box_textured(const::std::string& texture, TextureType tex_type, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color = { 1,1,1,1 }, float depth, AnchorPoint anchor) {
+    void Renderer::draw_box_textured(Transform transform, const::std::string& texture, TextureType tex_type, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color = { 1,1,1,1 }, float depth, AnchorPoint anchor) {
         get_texture(texture);
 
         // Derive corners of the box
@@ -384,7 +394,7 @@ namespace Flan {
             verts.push_back({ {tr, depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) });
             verts.push_back({ {br, depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) });
             verts.push_back({ {bl, depth}, {0, 0}, color * glm::vec4(1, 1, 1, 0) });
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
         }
         else if (tex_type == TextureType::tile) {
             std::vector<Vertex> verts;
@@ -396,7 +406,7 @@ namespace Flan {
             verts.push_back({ {tr, depth}, glm::vec2{1, 0} * tc_multiplier, color * glm::vec4(1, 1, 1, 0)});
             verts.push_back({ {br, depth}, glm::vec2{1, -1} * tc_multiplier, color * glm::vec4(1, 1, 1, 0) });
             verts.push_back({ {bl, depth}, glm::vec2{0, -1} * tc_multiplier, color * glm::vec4(1, 1, 1, 0) });
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
         }
         else if (tex_type == TextureType::slice) {
             // Split into 9 segments
@@ -409,71 +419,72 @@ namespace Flan {
             verts[1] = { {tl + tres * glm::vec2(one_third, 0), depth}, {one_third, 0}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {tl + tres * glm::vec2(one_third, one_third), depth}, {one_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {tl + tres * glm::vec2(0, one_third), depth}, {0, one_third}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Top right
             verts[0] = { {tr + tres * glm::vec2(-one_third, 0), depth}, {two_third, 0}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {tr + tres * glm::vec2(0, 0), depth}, {1, 0}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {tr + tres * glm::vec2(0, one_third), depth}, {1, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {tr + tres * glm::vec2(-one_third, one_third), depth}, {two_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Bottom left
             verts[0] = { {bl + tres * glm::vec2(0, -one_third), depth}, {0, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {bl + tres * glm::vec2(one_third, -one_third), depth}, {one_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {bl + tres * glm::vec2(one_third, 0), depth}, {one_third, 1}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {bl + tres * glm::vec2(0, 0), depth}, {0, 1}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Bottom right
             verts[0] = { {br + tres * glm::vec2(-one_third, -one_third), depth}, {two_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {br + tres * glm::vec2(0, -one_third), depth}, {1, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {br + tres * glm::vec2(0, 0), depth}, {1, 1}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {br + tres * glm::vec2(-one_third, 0), depth}, {two_third, 1}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Top
             verts[0] = { {tl + tres * glm::vec2(one_third, 0), depth}, {one_third, 0}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {tr + tres * glm::vec2(-one_third, 0), depth}, {two_third, 0}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {tr + tres * glm::vec2(-one_third, one_third), depth}, {two_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {tl + tres * glm::vec2(one_third, one_third), depth}, {one_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Bottom
             verts[0] = { {bl + tres * glm::vec2(one_third, -one_third), depth}, {one_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {br + tres * glm::vec2(-one_third, -one_third), depth}, {two_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {br + tres * glm::vec2(-one_third, 0), depth}, {two_third, 1}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {bl + tres * glm::vec2(one_third, 0), depth}, {one_third, 1}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Left
             verts[0] = { {tl + tres * glm::vec2(0, one_third), depth}, {0, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {tl + tres * glm::vec2(one_third, one_third), depth}, {one_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {bl + tres * glm::vec2(one_third, -one_third), depth}, {one_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {bl + tres * glm::vec2(0, -one_third), depth}, {0, two_third}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Right
             verts[0] = { {tr + tres * glm::vec2(-one_third, one_third), depth}, {two_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {tr + tres * glm::vec2(0, one_third), depth}, {1, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {br + tres * glm::vec2(0, -one_third), depth}, {1, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {br + tres * glm::vec2(-one_third, -one_third), depth}, {two_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
 
             // Middle
             verts[0] = { {tl + tres * glm::vec2(one_third, one_third), depth}, {one_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[1] = { {tr + tres * glm::vec2(-one_third, one_third), depth}, {two_third, one_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[2] = { {br + tres * glm::vec2(-one_third, -one_third), depth}, {two_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
             verts[3] = { {bl + tres * glm::vec2(one_third, -one_third), depth}, {one_third, two_third}, color * glm::vec4(1, 1, 1, 0) };
-            draw_polygon_textured(verts, texture, anchor);
+            draw_polygon_textured(transform, verts, texture, anchor);
         }
 
     }
 
-    void Renderer::draw_flat_polygon(std::vector<Vertex> verts, const AnchorPoint anchor) {
+    void Renderer::draw_flat_polygon(Transform transform, std::vector<Vertex> verts, const AnchorPoint anchor) {
         // Scale to screen
         for (auto& vert : verts) {
             vert.pos = pixels_to_normalized(vert.pos, anchor);
+            vert.clip_rect = { transform.top_left, transform.bottom_right };
         }
 
         // Add to render queue
@@ -492,13 +503,14 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_polygon_textured(std::vector<Vertex> verts, const std::string& texture, const AnchorPoint anchor) {
+    void Renderer::draw_polygon_textured(Transform transform, std::vector<Vertex> verts, const std::string& texture, const AnchorPoint anchor) {
         // Upload texture if necessary
         get_texture(texture);
 
         // Scale to screen
         for (auto& vert : verts) {
             vert.pos = pixels_to_normalized(vert.pos, anchor);
+            vert.clip_rect = { transform.top_left, transform.bottom_right };
         }
 
         // Add to render queue
@@ -544,7 +556,7 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor, AnchorPoint text_anchor) {
+    void Renderer::draw_text(Transform transform, const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor, AnchorPoint text_anchor) {
         init_luts();
         glm::vec2 cur_pos = pos;
 
@@ -616,22 +628,26 @@ namespace Flan {
                 Vertex v1 = { // top left
                     pixels_to_normalized(pos_depth + glm::vec3(grid_w_2, 0, 0.0f), ui_anchor),
                     glm::vec2(1, 0)* glyph_size + off_uv,
-                    color_noalpha
+                    color_noalpha,
+                    {transform.top_left, transform.bottom_right}
                 };
                 Vertex v2 = { // top right
                     pixels_to_normalized(pos_depth + glm::vec3(0, 0, 0.0f), ui_anchor),
                     glm::vec2(0, 0) * glyph_size + off_uv,
-                    color_noalpha
+                    color_noalpha,
+                    {transform.top_left, transform.bottom_right}
                 };
                 Vertex v3 = { // bottom right
                     pixels_to_normalized(pos_depth + glm::vec3(0, grid_h_2, 0.0f), ui_anchor),
                     glm::vec2(0, 1) * glyph_size + off_uv,
-                    color_noalpha
+                    color_noalpha,
+                    {transform.top_left, transform.bottom_right}
                 };
                 Vertex v4 = { // bottom left
                     pixels_to_normalized(pos_depth + glm::vec3(grid_w_2, grid_h_2, 0.0f), ui_anchor),
                     glm::vec2(1, 1) * glyph_size + off_uv,
-                    color_noalpha
+                    color_noalpha,
+                    {transform.top_left, transform.bottom_right}
                 };
 
                 // Create triangles and add to queue
@@ -642,6 +658,19 @@ namespace Flan {
             // Move cursor
             cur_pos.x += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
         }
+    }
+
+    void Renderer::set_clipping_rectangle(bool enabled, glm::vec2 top_left, glm::vec2 bottom_right)
+    {
+        // If we don't want a clipping rectangle, we just set it to some ridiculously high range, it'll be fine
+        if (enabled == false) {
+            top_left = { -999999.f, -999999.f };
+            bottom_right = { +999999.f, +999999.f };
+            return;
+        }
+
+        // Otherwise yeah let's update the variable
+        _clipping_rectangle = { top_left, bottom_right };
     }
 
     glm::vec2 Renderer::apply_anchor(const glm::vec2 pos, AnchorPoint anchor) {

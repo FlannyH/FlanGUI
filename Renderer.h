@@ -10,12 +10,14 @@
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
+#include "CommonStructs.h"
 
 namespace Flan {
     struct Vertex {
         glm::vec3 pos;
         glm::vec2 tc;
         glm::vec4 color;
+        glm::vec4 clip_rect = { -99999, -99999, 99999, 99999};
     };
 
     struct Triangle {
@@ -38,18 +40,6 @@ namespace Flan {
         compute
     };
 
-    enum class AnchorPoint {
-        center = 0,
-        top_left,
-        top,
-        top_right,
-        right,
-        bottom_right,
-        bottom,
-        bottom_left,
-        left,
-    };
-
     enum class TextureType {
         stretch,
         tile,
@@ -59,6 +49,11 @@ namespace Flan {
     struct Texture {
         GLuint id;
         glm::ivec2 res;
+    };
+
+    struct ClipRect {
+        glm::vec2 top_left;
+        glm::vec2 bottom_right;
     };
 
     class Renderer {
@@ -83,16 +78,17 @@ namespace Flan {
         bool load_font(const std::string& path);
 
         //---Drawing Functions---
-        void draw_line(glm::vec2 a, glm::vec2 b, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_box_line(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_box_solid(glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_box_textured(const::std::string& texture, TextureType tex_type, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_polygon_textured(std::vector<Vertex> verts, const std::string& texture, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_circle_line(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_circle_solid(glm::vec2 center, glm::vec2 scale, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_flat_polygon(std::vector<Vertex> verts, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_line(Transform transform, glm::vec2 a, glm::vec2 b, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_box_line(Transform transform, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_box_solid(Transform transform, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_box_textured(Transform transform, const::std::string& texture, TextureType tex_type, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_polygon_textured(Transform transform, std::vector<Vertex> verts, const std::string& texture, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_circle_line(Transform transform, glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_circle_solid(Transform transform, glm::vec2 center, glm::vec2 scale, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_flat_polygon(Transform transform, std::vector<Vertex> verts, AnchorPoint anchor = AnchorPoint::top_left);
         void get_texture(const std::string& texture);
-        void draw_text(const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor = AnchorPoint::top_left, AnchorPoint text_anchor = AnchorPoint::top_left);
+        void draw_text(Transform transform, const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor = AnchorPoint::top_left, AnchorPoint text_anchor = AnchorPoint::top_left);
+        void set_clipping_rectangle(bool enabled, glm::vec2 top_left = {0.0f, 0.0f}, glm::vec2 bottom_right = {0.0f, 0.0f});
         [[nodiscard]] glm::vec2 apply_anchor(glm::vec2 pos, AnchorPoint anchor);
         [[nodiscard]] glm::vec2 pixels_to_normalized(glm::vec2 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
         [[nodiscard]] glm::vec3 pixels_to_normalized(glm::vec3 pos, AnchorPoint anchor = AnchorPoint::top_left) const;
@@ -109,6 +105,7 @@ namespace Flan {
         GLuint _vao{};
         GLuint _vbo{};
         Font _font{};
+        ClipRect _clipping_rectangle{};
         #define SINE_LUT_RESOLUTION 32
         std::array<float, SINE_LUT_RESOLUTION> _sine_lut{};
         std::map<wchar_t, std::vector<int>> _wchar_lut;

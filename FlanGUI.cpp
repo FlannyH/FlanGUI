@@ -29,7 +29,7 @@ int main()
         {
             printf("hi1!\n");
         }, { L"Button1", {2, 2},  { 1, 0, 0, 1 }, Flan::AnchorPoint::center, Flan::AnchorPoint::center});
-    Flan::create_text(scene, "debug_text", { { 8, 8 }, {9, 9} }, { L"" });
+    Flan::create_text(scene, "debug_text", { { 8, 8 }, {480, 480} }, { L"" });
     Flan::create_numberbox(scene, "debug_numberbox", { { 100, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
     Flan::create_wheelknob(scene, "debug_numberbox", { { 300, 600 }, { 200, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
     Flan::create_slider(scene, "debug_numberbox", { { 500, 300 }, { 600, 700 } }, { 0.0, 100.0, 1.0 }, 50.0);
@@ -61,7 +61,7 @@ int main()
         const float dt = calculate_delta_time();
         time += dt;
         smooth_dt = smooth_dt + (dt - smooth_dt) * (1.f-powf(0.02f, dt));
-        swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps\nmouse_pos_absolute: %.0f, %.0f\nmouse_pos_window: %.0f, %.0f\nmouse_pos_relative: %.0f, %.0f\nmouse_buttons = %i%i%i\nmouse_down = %i%i%i\nmouse_up = %i%i%i\nmouse_wheel = %.0f\ndebug_numberbox = %f\ndebug_radio_button = %f\n",
+        swprintf_s(frametime_text, L"frametime: %.5f ms\nframe rate: %.3f fps\nmouse_pos_absolute: %.0f, %.0f\nmouse_pos_window: %.0f, %.0f\nmouse_pos_relative: %.0f, %.0f\nmouse_buttons = %i%i%i\nmouse_down = %i%i%i\nmouse_up = %i%i%i\nmouse_wheel = %.0f\ndebug_numberbox = %f\ndebug_radio_button = %f\ndebug_combobox = %f\n",
             smooth_dt * 1000.f, 
             1.0f/smooth_dt, 
             input.mouse_pos(Flan::MouseRelative::absolute).x, 
@@ -75,10 +75,11 @@ int main()
             input.mouse_up(0), input.mouse_up(1), input.mouse_up(2),
             input.mouse_wheel(),
             Flan::Value::get<double>("debug_numberbox"),
-            Flan::Value::get<double>("debug_radio_button")
+            Flan::Value::get<double>("debug_radio_button"),
+            Flan::Value::get<double>("debug_combobox")
         );
         Flan::Value::set_ptr("debug_text", &frametime_text);
-        Flan::update_entities(scene, renderer, input);
+        Flan::update_entities(scene, renderer, input, dt);
 
         renderer.end_frame();
         input.update(renderer.window());
