@@ -636,6 +636,11 @@ namespace Flan {
                     // Determine a nice color based on what the mouse is doing
                     glm::vec4 color = { 1, 1, 1, 1 };
 
+                    // If this is the currently selected entry, darken it a bit
+                    if (i == combobox->current_selected_index) {
+                        color *= 0.8f;
+                    }
+
                     // Create a hitbox for the current item
                     Hitbox curr_item_hitbox{};
                     curr_item_hitbox.top_left = renderer.apply_anchor_in_pixel_space(box_top_left, transform->anchor);
@@ -842,6 +847,7 @@ namespace Flan {
             auto* combobox = scene.get_component<Combobox>(entity);
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+            auto* value = scene.get_component<Value>(entity);
 
             // Make sure it also has a mouse interact component
             if (mouse_interact == nullptr) {
@@ -854,14 +860,12 @@ namespace Flan {
                 if (multi_hitbox->click_states[0] == ClickState::click) {
                     combobox->is_list_open = !combobox->is_list_open;
                     combobox_handled = true;
-                    printf("%s combobox\n", combobox->is_list_open ? "opening" : "closing");
                 }
 
                 // If it's outside the combobox in general, close it
                 else if (combobox->is_list_open){
                     combobox->is_list_open = false;
                     combobox_handled = true;
-                    printf("%s combobox\n", combobox->is_list_open ? "opening" : "closing");
                 }
             }
 
@@ -876,16 +880,15 @@ namespace Flan {
                 if (multi_hitbox->click_states[1] == ClickState::hover) {
                     combobox->target_scroll_position -= input.mouse_wheel() * combobox->item_height * 1.25f;
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
-                    printf("scrolled to position %f and index %i\n", combobox->target_scroll_position, combobox->current_selected_index);
                 }
 
                 // Otherwise if we are hovered over the button, change the index
                 if (multi_hitbox->click_states[0] == ClickState::hover) {
                     combobox->current_selected_index -= input.mouse_wheel();
-                    combobox->target_scroll_position -= input.mouse_wheel() * combobox->item_height;
+                    combobox->target_scroll_position = (combobox->current_selected_index - 0.5f) * combobox->item_height ;
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
                     combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, int(combobox->list_items.size()) - 1);
-                    printf("scrolled to position %f and index %i\n", combobox->target_scroll_position, combobox->current_selected_index);
+                    value->get_as_ref<double>() = combobox->current_selected_index;
                 }
             }
 
