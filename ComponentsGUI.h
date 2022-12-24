@@ -333,12 +333,13 @@ namespace Flan {
         const Transform& transform,
         const NumberRange& range = { 0.0, 100.0, 1.0 },
         const double init_val = 0,
+        bool has_text = true,
         Text text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::bottom, }
     ) {
         const glm::vec2 scale = transform.bottom_right - transform.top_left;
         const bool is_horizontal = (scale.x) > (scale.y);
         if (is_horizontal) {
-            text.ui_anchor = AnchorPoint::center;
+            text.ui_anchor = AnchorPoint::bottom;
             text.text_anchor = AnchorPoint::top;
         }
 
@@ -350,7 +351,7 @@ namespace Flan {
         scene.add_component<Scrollable>(entity);
         scene.add_component<MouseInteract>(entity);
         scene.add_component<Slider>(entity);
-        scene.add_component<Text>(entity, text);
+        if (has_text) scene.add_component<Text>(entity, text);
         scene.get_component<Value>(entity)->set<double>(init_val);
         return entity;
     }
