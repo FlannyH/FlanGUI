@@ -484,7 +484,7 @@ namespace Flan {
         // Scale to screen
         for (auto& vert : verts) {
             vert.pos = pixels_to_normalized(vert.pos, anchor);
-            vert.clip_rect = { transform.top_left, transform.bottom_right };
+            vert.clip_rect = { apply_anchor_in_pixel_space(transform.top_left, transform.anchor), apply_anchor_in_pixel_space(transform.bottom_right, transform.anchor) };
         }
 
         // Add to render queue
@@ -510,7 +510,7 @@ namespace Flan {
         // Scale to screen
         for (auto& vert : verts) {
             vert.pos = pixels_to_normalized(vert.pos, anchor);
-            vert.clip_rect = { transform.top_left, transform.bottom_right };
+            vert.clip_rect = { apply_anchor_in_pixel_space(transform.top_left, transform.anchor), apply_anchor_in_pixel_space(transform.bottom_right, transform.anchor) };
         }
 
         // Add to render queue
@@ -700,7 +700,7 @@ namespace Flan {
             {0.0f, 1.0f},
             {0.0f, 0.5f},
         };
-        return pos + (pixel_anchor_offsets[static_cast<size_t>(anchor)] * glm::vec2(_res)) / 2.0f;
+        return pos + (pixel_anchor_offsets[static_cast<size_t>(anchor)] * glm::vec2(_res));
     }
 
     bool Renderer::load_texture(const std::string& path, Texture& handle) {

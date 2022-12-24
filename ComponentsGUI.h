@@ -2,6 +2,7 @@
 #include <functional>
 #include <utility>
 #include <cmath>
+#include <algorithm>
 
 #include "ComponentSystem.h"
 #include "Input.h"
@@ -23,6 +24,11 @@
 #define N_VALUES 256
 
 namespace Flan {
+    template <typename T>
+    T sign(T v) {
+        return (v > 0) ? +1 : -1;
+    }
+
     enum class ClickState {
         idle = 0,
         hover,
@@ -136,9 +142,10 @@ namespace Flan {
         float button_height = 60.0f;
         float list_height = 360.0f;
         float item_height = 60.0f;
+        float target_scroll_position = 0.0f;
         float current_scroll_position = 0.0f;
         bool is_list_open = false;
-        size_t current_selected_index = 0;
+        int current_selected_index = 0;
     };
 
     struct Scrollable{}; // This is a tag without data
@@ -388,8 +395,8 @@ namespace Flan {
         const Transform& transform,
         std::vector<std::wstring> items,
         const size_t initial_index = 0,
-        const float item_height = 60.0f,
-        const float list_height = 360.0f
+        const float item_height = 40.0f,
+        const float list_height = 420.0f
     )
     {
         // Create hitboxes
@@ -483,7 +490,7 @@ namespace Flan {
             // Calculate position relative to top_left
             const glm::vec2 top_left = transform->top_left + glm::vec2(renderer.resolution()) * anchor_offsets[static_cast<size_t>(transform->anchor)];
             const glm::vec2 offset_from_top_left = (transform->bottom_right - transform->top_left) * anchor_offsets[static_cast<size_t>(text->ui_anchor)];
-            renderer.draw_text(*transform, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
+            renderer.draw_text({ {-9999, -9999}, {9999, 9999}, transform->depth, transform->anchor }, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
             renderer.draw_circle_solid(*transform, top_left, { 4,4 }, { 1,0,1,1 });
         }
     }
@@ -522,15 +529,16 @@ namespace Flan {
             const glm::vec2 center = (transform->top_left + bottom_right) / 2.0f;
             const glm::vec2 scale = center - transform->top_left;
             double& val = value->get_as_ref<double>();
+            float margin = 8;
             if (draggable && draggable->is_horizontal)
             {
-                const float dist_left = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * scale.x;
+                const float dist_left = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * (scale.x - margin);
                 renderer.draw_line(*transform, center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
                 renderer.draw_line(*transform, center + glm::vec2{ scale.x, 0 }, center - glm::vec2{ scale.x, 0 }, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
                 renderer.draw_box_solid(*transform, center + glm::vec2{ dist_left - 10, -20 }, center + glm::vec2{ dist_left + 10, +20 }, { 1,1,1,1 });
             }
             else {
-                const float dist_bottom = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * -scale.y;
+                const float dist_bottom = static_cast<float>(((val - range->min) / (range->max - range->min) - 0.5)) * 2 * -(scale.y - margin);
                 renderer.draw_line(*transform, center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 0, 0, 0, 1 }, 4, transform->depth + 0.0002f);
                 renderer.draw_line(*transform, center + glm::vec2{0, scale.y}, center - glm::vec2{0, scale.y}, { 1, 1, 1, 1 }, 2, transform->depth + 0.0001f);
                 renderer.draw_box_solid(*transform, center + glm::vec2{ -20, dist_bottom - 10 }, center + glm::vec2{ +20, dist_bottom + 10 }, { 1,1,1,1 });
@@ -611,26 +619,19 @@ namespace Flan {
             renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(-1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
 
             // Render the list if necessary
-            size_t start_index = static_cast<size_t>(combobox->current_scroll_position / combobox->list_items.size());
+            size_t start_index = size_t(combobox->current_scroll_position / combobox->item_height);
+            size_t end_index = start_index + combobox->list_height / combobox->item_height + 1;
             if (abs(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
-                for (size_t i = 0; i < combobox->list_height / combobox->item_height; ++i)
+                for (size_t i = start_index; i <= end_index; ++i)
                 {
                     // Stop if end of list was reached
-                    if (start_index + i >= combobox->list_items.size())
+                    if (i >= combobox->list_items.size())
                         break;
 
                     // Get transform information
-                    box_top_left = transform->top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * i));
+                    box_top_left = transform->top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * i) - combobox->current_scroll_position);
                     box_bottom_right = { transform->bottom_right.x, box_top_left.y + combobox->item_height };
-                    text_offset = { 8, -20 + transform->top_left.y + (combobox->button_height / 2.0f) };
-
-                    // Stop if the top is past the transform (and thus off screen)
-                    if (box_top_left.y > transform->bottom_right.y)
-                        break;
-
-                    // Also stop if the bottom is above the button's bottom
-                    if (box_bottom_right.y < transform->top_left.y + combobox->button_height)
-                        continue;
+                    text_offset = { 8, -20 + transform->top_left.y + (combobox->item_height / 2.0f) };
 
                     // Determine a nice color based on what the mouse is doing
                     glm::vec4 color = { 1, 1, 1, 1 };
@@ -656,12 +657,10 @@ namespace Flan {
                         }
                     }
 
-
-
                     // Draw the boxes
-                    renderer.draw_box_solid(*transform, box_top_left + glm::vec2(+1, 0), box_bottom_right + glm::vec2(-1, -1), color, transform->depth + 0.01f, transform->anchor);
-                    renderer.draw_box_line(*transform, box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth + 0.01f, 0, transform->anchor);
-                    renderer.draw_text(*transform, combobox->list_items[start_index + i], box_top_left + text_offset, { 2, 2 }, { 0, 0, 0, 1 }, transform->depth, transform->anchor, AnchorPoint::left);
+                    renderer.draw_box_solid(*transform, box_top_left + glm::vec2(+1, 0), box_bottom_right + glm::vec2(-1, -1), color, transform->depth + 0.03f, transform->anchor);
+                    renderer.draw_box_line(*transform, box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth + 0.03f, 0, transform->anchor);
+                    renderer.draw_text(*transform, combobox->list_items[i], box_top_left + text_offset, { 2, 2 }, { 0, 0, 0, 1 }, transform->depth + 0.02f, transform->anchor, AnchorPoint::left);
                 }
             }
         }
@@ -858,9 +857,6 @@ namespace Flan {
                     printf("%s combobox\n", combobox->is_list_open ? "opening" : "closing");
                 }
 
-                // If it's the bottom part of the combobox, figure out what item we pressed
-
-
                 // If it's outside the combobox in general, close it
                 else if (combobox->is_list_open){
                     combobox->is_list_open = false;
@@ -874,9 +870,31 @@ namespace Flan {
                 combobox_handled = true;
             }
 
+            // Handle scrolling
+            if (input.mouse_wheel() != 0) {
+                // If we are hovered over the list, scroll the list
+                if (multi_hitbox->click_states[1] == ClickState::hover) {
+                    combobox->target_scroll_position -= input.mouse_wheel() * combobox->item_height * 1.25f;
+                    combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
+                    printf("scrolled to position %f and index %i\n", combobox->target_scroll_position, combobox->current_selected_index);
+                }
+
+                // Otherwise if we are hovered over the button, change the index
+                if (multi_hitbox->click_states[0] == ClickState::hover) {
+                    combobox->current_selected_index -= input.mouse_wheel();
+                    combobox->target_scroll_position -= input.mouse_wheel() * combobox->item_height;
+                    combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
+                    combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, int(combobox->list_items.size()) - 1);
+                    printf("scrolled to position %f and index %i\n", combobox->target_scroll_position, combobox->current_selected_index);
+                }
+            }
+
             // Handle transform
             float target_bottom = transform->top_left.y + combobox->button_height + (combobox->is_list_open * combobox->list_height);
             transform->bottom_right.y = std::lerp(transform->bottom_right.y, target_bottom, 1.0f - pow(2.0f, -delta_time * 75.0f));
+
+            // Interpolate towards the scroll
+            combobox->current_scroll_position = std::lerp(combobox->current_scroll_position, combobox->target_scroll_position, 1.0f - pow(2.0f, -delta_time * 25.0f));
         }
     }
 

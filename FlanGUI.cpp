@@ -48,6 +48,16 @@ int main()
         L"Option 3",
         L"Option 4",
         L"Option 5",
+        L"Option 6",
+        L"Option 7",
+        L"Option 8",
+        L"Option 9",
+        L"Option A",
+        L"Option B",
+        L"Option C",
+        L"Option D",
+        L"Option E",
+        L"Option F",
         })
     );
 
