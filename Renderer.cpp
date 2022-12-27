@@ -172,9 +172,14 @@ namespace Flan {
         {-1,  0}, // left
     };
 
-    void Renderer::init() {
+    void Renderer::init(bool invisible) {
         // Init + window settings
         glfwInit();
+        if (invisible)
+        {
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        }
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
@@ -192,6 +197,14 @@ namespace Flan {
         glDebugMessageCallback(debug_callback_func, nullptr);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         init(window);
+        glfwMakeContextCurrent(NULL);
+    }
+
+    void Renderer::init(int w, int h, bool invisible)
+    {
+        _res.x = w;
+        _res.y = h;
+        init(invisible);
     }
 
     void Renderer::init(GLFWwindow* window) {
@@ -199,8 +212,8 @@ namespace Flan {
         _window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glfwSwapInterval(0);
-        _shader = shader_from_file("Shaders/sprite");
-        load_font("font.png");
+        _shader = shader_from_file("./Plugins/Fruity/Generators/FlanSoundfontPlayer/Shaders/sprite");
+        load_font("./Plugins/Fruity/Generators/FlanSoundfontPlayer/font.png");
         //shader = shader_from_string(vert_shader, frag_shader);
         glUseProgram(_shader);
 

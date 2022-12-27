@@ -885,7 +885,7 @@ namespace Flan {
 
                 // Otherwise if we are hovered over the button, change the index
                 if (multi_hitbox->click_states[0] == ClickState::hover) {
-                    combobox->current_selected_index -= input.mouse_wheel();
+                    combobox->current_selected_index -= (int)input.mouse_wheel();
                     combobox->target_scroll_position = (combobox->current_selected_index - 0.5f) * combobox->item_height ;
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
                     combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, int(combobox->list_items.size()) - 1);

@@ -1,4 +1,5 @@
 #include "Input.h"
+#include <fstream>
 namespace Flan {
     Input::Input(GLFWwindow* window) {
         glfwSetWindowUserPointer(window, this);
@@ -31,6 +32,7 @@ namespace Flan {
         }
 
         // Reset scroll
+        _mouse_wheel_buffer = _mouse_wheel;
         _mouse_wheel = 0;
 
         // Set mouse cursor visibility
@@ -38,7 +40,8 @@ namespace Flan {
     }
     
     void Input::scroll_callback(GLFWwindow* window, [[maybe_unused]] double x, double y) {
-        static_cast<Input*>(glfwGetWindowUserPointer(window))->_mouse_wheel += static_cast<float>(y);
+        Input* input = static_cast<Input*>(glfwGetWindowUserPointer(window));
+        input->_mouse_wheel += static_cast<float>(y);
     }
 
     glm::vec2 Input::mouse_pos(const MouseRelative rel) const {
@@ -66,7 +69,7 @@ namespace Flan {
     }
 
     float Input::mouse_wheel() const {
-        return _mouse_wheel;
+        return _mouse_wheel_buffer;
     }
 
     void Input::mouse_visible(const bool value) {

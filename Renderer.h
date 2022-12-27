@@ -4,9 +4,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <fstream>
 
 #include "GL/glcorearb.h"
 #include "glfw/glfw3.h"
+#include <glfw/glfw3native.h>
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
@@ -59,7 +61,8 @@ namespace Flan {
     class Renderer {
     public:
         //---General---
-        void init();
+        void init(bool invisible = false);
+        void init(int w, int h, bool invisible = false);
         void init(GLFWwindow* window); // Init the renderer using an existing window
         void begin_frame();
         static void gl_error();
