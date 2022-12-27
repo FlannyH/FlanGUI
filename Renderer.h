@@ -62,7 +62,7 @@ namespace Flan {
     public:
         //---General---
         void init(bool invisible = false);
-        void init(int w, int h, bool invisible = false);
+        void init(int w, int h, bool invisible = false, HMODULE dll = 0);
         void init(GLFWwindow* window); // Init the renderer using an existing window
         void begin_frame();
         static void gl_error();
@@ -74,10 +74,12 @@ namespace Flan {
 
         //---Resource Management---
         static GLuint shader_from_file(const std::string& path);
+        GLuint shader_from_resource(const std::string& path);
         static GLuint shader_from_string(const std::string& vert, const std::string& frag);
         static bool shader_part_from_file(const std::string& path, ShaderType type, const GLuint& program);
+        bool shader_part_from_resource(const std::string& name, ShaderType type, const GLuint& program);
         static bool shader_part_from_string(const std::string& string, ShaderType type, const GLuint& program);
-        static bool load_texture(const std::string& path, Texture& handle);
+        bool load_texture(const std::string& path, Texture& handle);
         bool load_font(const std::string& path);
 
         //---Drawing Functions---
@@ -113,5 +115,6 @@ namespace Flan {
         std::array<float, SINE_LUT_RESOLUTION> _sine_lut{};
         std::map<wchar_t, std::vector<int>> _wchar_lut;
         std::map<std::string, Texture> _textures;
+        HMODULE dll{};
     };
 }

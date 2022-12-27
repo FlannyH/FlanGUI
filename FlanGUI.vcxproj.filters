@@ -974,6 +974,9 @@
     <ClInclude Include="CommonStructs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="External\include\glm\detail\func_common.inl">
@@ -1384,5 +1387,30 @@
     <None Include="External\include\glm\gtx\wrap.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="Shaders\sprite.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\sprite.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="FlanGUI.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="button.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="font.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="test.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="numberbox.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

@@ -2,6 +2,7 @@
 #include "Renderer.h"
 
 #include <fstream>
+#include <string_view>
 #include <utility>
 #include <GL/gl3w.h>
 
@@ -10,6 +11,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "ComponentsGUI.h"
 #include "stb/stb_image.h"
+#include "resource.h"
 
 
 static void debug_callback_func(
@@ -130,6 +132,55 @@ message:	%s\n",
 
 
 namespace Flan {
+    bool read_file(const std::string& path, int& size, char*& data) {
+        // Open file
+        std::ifstream file;
+        file.open(path.c_str(), std::ios::binary | std::ios::in);
+        if (file.good() == false) return false;
+
+        // Get size
+        const std::streampos startpos = file.tellg();
+        file.seekg(0, std::ios::end);
+        size = static_cast<int>(file.tellg() - startpos);
+        file.seekg(0, std::ios::beg);
+
+        // Get data
+        data = static_cast<char*>(malloc(size));
+        if (!data) return false;
+        file.read(data, size);
+
+        return true;
+    }
+
+    bool read_resource(std::string name, int& size, char*& data, const std::wstring& type, HMODULE dll) {
+        // Convert to wstring
+        std::wstring wname;
+        wname.resize(name.size() + 1);
+        size_t converted_chars = 0;
+        mbstowcs_s(&converted_chars, &wname[0], wname.size(), name.c_str(), name.size());
+
+        // Find the resource
+        HRSRC resource_handle = FindResource(dll, wname.c_str(), type.c_str());
+        if (!resource_handle) return false;
+
+        // Load it into memory
+        HGLOBAL resource_data_handle = LoadResource(dll, resource_handle);
+        if (!resource_data_handle) return false;
+
+        // Get the pointer to the data
+        LPVOID resource_data = LockResource(resource_data_handle);
+        if (!resource_data) return false;
+
+        // Get the size of the data
+        DWORD resource_data_size = SizeofResource(dll, resource_handle);
+        if (!resource_data_size) return false;
+
+        // Return the data into the parameters
+        size = resource_data_size;
+        data = (char*)resource_data;
+
+        return true;
+    }
     const std::string vert_shader =
         "#version 330 core\n"
         "precision mediump float;\n"
@@ -200,10 +251,11 @@ namespace Flan {
         glfwMakeContextCurrent(NULL);
     }
 
-    void Renderer::init(int w, int h, bool invisible)
+    void Renderer::init(int w, int h, bool invisible, HMODULE dll_handle)
     {
         _res.x = w;
         _res.y = h;
+        dll = dll_handle;
         init(invisible);
     }
 
@@ -212,8 +264,9 @@ namespace Flan {
         _window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glfwSwapInterval(0);
-        _shader = shader_from_file("./Plugins/Fruity/Generators/FlanSoundfontPlayer/Shaders/sprite");
-        load_font("./Plugins/Fruity/Generators/FlanSoundfontPlayer/font.png");
+        //_shader = shader_from_file("Shaders\\sprite");
+        _shader = shader_from_resource("sprite");
+        load_font("font.png");
         //shader = shader_from_string(vert_shader, frag_shader);
         glUseProgram(_shader);
 
@@ -721,6 +774,14 @@ namespace Flan {
         int w, h, c;
         uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
 
+        // If not on disk, find in resources
+        if (!data) {
+            int size;
+            char* data_resource;
+            read_resource(path, size, data_resource, L"PNG", dll);
+            data = stbi_load_from_memory((stbi_uc*)data_resource, size, &w, &h, &c, 4);
+        }
+
         // Did it load correctly?
         if (!data || !w || !h) {
             printf("ERROR: Failed to load texture '%s'! STBI returned the following error: %s", path.c_str(), stbi_failure_reason());
@@ -750,6 +811,20 @@ namespace Flan {
         // Load image
         int w, h, c;
         uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
+
+        // If failed from disk, try from resources
+        if (!data) {
+            int size;
+            char* data_resource;
+            read_resource(path, size, data_resource, L"PNG", dll);
+            data = stbi_load_from_memory((stbi_uc*)data_resource, size, &w, &h, &c, 4);
+        }
+        
+        // If we still don't have an image, throw an error
+        if (!data) {
+            printf("ERROR: File not found: \"%s\".", path.c_str());
+            return false;
+        }
 
         // Make sure it's perfectly divides into a 16x16 grid
         if (w % 16 != 0 || h % 8 != 0) {
@@ -821,9 +896,9 @@ namespace Flan {
     GLuint Renderer::shader_from_file(const std::string& path) {
         const GLuint shader_gpu = glCreateProgram();
 
-        const bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
-        const bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
-        const bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
+        bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
+        bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
+        bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
         shader_part_from_file(path + ".geom", ShaderType::geometry, shader_gpu);
 
         if (
@@ -844,32 +919,31 @@ namespace Flan {
         return shader_gpu;
     }
 
-    GLuint Renderer::shader_from_string(const std::string& vert, const std::string& frag) {
+    GLuint Renderer::shader_from_resource(const std::string& path)
+    {
         const GLuint shader_gpu = glCreateProgram();
-        shader_part_from_string(vert, ShaderType::vertex, shader_gpu);
-        shader_part_from_string(frag, ShaderType::pixel, shader_gpu);
+
+        bool vert_loaded = shader_part_from_resource(path + ".vert", ShaderType::vertex, shader_gpu);
+        bool frag_loaded = shader_part_from_resource(path + ".frag", ShaderType::pixel, shader_gpu);
+        bool comp_loaded = shader_part_from_resource(path + ".comp", ShaderType::compute, shader_gpu);
+        shader_part_from_resource(path + ".geom", ShaderType::geometry, shader_gpu);
+
+        if (
+            (vert_loaded && frag_loaded) == false &&
+            comp_loaded == false)
+        {
+            printf("[ERROR] Failed to load shader! Either the shader files do not exist, or a compilation error occurred.\n");
+        }
+        if (
+            (vert_loaded || frag_loaded) == true &&
+            comp_loaded == true)
+        {
+            printf("[ERROR] Failed to load shader! Unsure whether to use vertex/fragment shaders, or compute shaders, since both exist.\n");
+        }
+
         glLinkProgram(shader_gpu);
+
         return shader_gpu;
-    }
-
-    bool read_file(const std::string& path, int& size, char*& data) {
-        // Open file
-        std::ifstream file;
-        file.open(path.c_str(), std::ios::binary | std::ios::in);
-        if (file.good() == false) return false;
-
-        // Get size
-        const std::streampos startpos = file.tellg();
-        file.seekg(0, std::ios::end);
-        size = static_cast<int>(file.tellg() - startpos);
-        file.seekg(0, std::ios::beg);
-
-        // Get data
-        data = static_cast<char*>(malloc(size));
-        if (!data) return false;
-        file.read(data, size);
-
-        return true;
     }
 
     bool Renderer::shader_part_from_file(const std::string& path, ShaderType type, const GLuint& program) {
@@ -909,6 +983,53 @@ namespace Flan {
         if (log_length > 0)
         {
             printf("[ERROR] File '%s':\n\n%s\n", path.c_str(), frag_shader_error.data());
+            return false;
+        }
+
+        // Attach to program
+        glAttachShader(program, shader);
+
+        return true;
+    }
+
+    bool Renderer::shader_part_from_resource(const std::string& name, ShaderType type, const GLuint& program)
+    {
+        constexpr int shader_types[]
+        {
+            GL_VERTEX_SHADER,
+            GL_FRAGMENT_SHADER,
+            GL_GEOMETRY_SHADER,
+            GL_COMPUTE_SHADER,
+        };
+
+        // Read shader source file
+        int shader_size = 0;
+        char* shader_data = nullptr;
+        read_resource(name, shader_size, shader_data, L"ShaderSource", dll);
+
+        if (shader_data == nullptr) {
+            return false;
+        }
+
+        // Create shader on GPU
+        const GLuint type_to_create = shader_types[static_cast<int>(type)];
+        const GLuint shader = glCreateShader(type_to_create);
+
+        // Compile shader source
+        const char* data = shader_data;
+        glShaderSource(shader, 1, &data, &shader_size);
+        glCompileShader(shader);
+
+        // Error checking
+        GLint result = GL_FALSE;
+        int log_length;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        std::vector<char> frag_shader_error(log_length > 1 ? log_length : 1);
+        glGetShaderInfoLog(shader, log_length, nullptr, frag_shader_error.data());
+        if (log_length > 0)
+        {
+            printf("[ERROR] \n%s\n", frag_shader_error.data());
             return false;
         }
 
