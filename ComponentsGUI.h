@@ -120,6 +120,8 @@ namespace Flan {
         double min;
         double max;
         double step;
+        double default_value = 0.0;
+        uint32_t visual_decimal_places = 2;
     };
     
     struct Draggable {
@@ -313,8 +315,7 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        const NumberRange& range = { 0.0, 100.0, 1.0 },
-        const double init_val = 0,
+        const NumberRange& range = { 0.0, 100.0, 1.0, 0.0, 0 },
         const Text& text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::center, }
     ) {
         const EntityID entity = scene.new_entity();
@@ -328,7 +329,7 @@ namespace Flan {
         //scene.add_component<Sprites>(entity, { {"numberbox.png", TextureType::slice} });
         //scene.add_component<SpriteRender>(entity);
         scene.add_component<Text>(entity, text);
-        scene.get_component<Value>(entity)->set<double>(init_val);
+        scene.get_component<Value>(entity)->set<double>(range.default_value);
         return entity;
     }
 
@@ -336,8 +337,7 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        const NumberRange& range = { 0.0, 100.0, 1.0 },
-        const double init_val = 0,
+        const NumberRange& range = { 0.0, 100.0, 1.0, 0.0, 0 },
         const Text& text = { L"",{2, 2}, {1,0,1,1}, AnchorPoint::bottom, AnchorPoint::center, }
     ) {
         const EntityID entity = scene.new_entity();
@@ -349,7 +349,7 @@ namespace Flan {
         scene.add_component<MouseInteract>(entity);
         scene.add_component<WheelKnob>(entity);
         scene.add_component<Text>(entity, text);
-        scene.get_component<Value>(entity)->set<double>(init_val);
+        scene.get_component<Value>(entity)->set<double>(range.default_value);
         return entity;
     }
 
@@ -357,8 +357,7 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        const NumberRange& range = { 0.0, 100.0, 1.0 },
-        const double init_val = 0,
+        const NumberRange& range = { 0.0, 100.0, 1.0, 0.0, 0 },
         bool has_text = true,
         Text text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::bottom, }
     ) {
@@ -378,7 +377,7 @@ namespace Flan {
         scene.add_component<MouseInteract>(entity);
         scene.add_component<Slider>(entity);
         if (has_text) scene.add_component<Text>(entity, text);
-        scene.get_component<Value>(entity)->set<double>(init_val);
+        scene.get_component<Value>(entity)->set<double>(range.default_value);
         return entity;
     }
 
@@ -512,19 +511,16 @@ namespace Flan {
                     if (text->text_length < 32) {
                         delete text->text;
                         text->text = new wchar_t[32];
+                        text->text[0] = 'A';
+                        text->text[1] = '\0';
                     }
 
                     //If all parts of the range are a whole number, print as if it were an integer
+                    swprintf_s(text->text, 32, L"%.2f", val);
                     if (range) {
-                        if (range->step == floor(range->step) &&
-                            range->min == floor(range->min) &&
-                            range->max == floor(range->max)) 
-                        {
-                            swprintf_s(text->text, 32, L"%.0f", val);
-                        }
-                    }
-                    else {
-                        swprintf_s(text->text, 32, L"%.2f", val);
+                        wchar_t filter[] = L"%.xf";
+                        filter[2] = L'0' + range->visual_decimal_places;
+                        swprintf_s(text->text, 32, filter, val);
                     }
                 }
             }
@@ -797,6 +793,14 @@ namespace Flan {
                 // Reset the MouseInteract state back to idle
                 mouse_interact->state = ClickState::idle;
                 input.mouse_visible(true);
+            }
+            // If we're hovering over the element and we middle click, AND the component has a value, set that value to default
+            auto* value = scene.get_component<Value>(entity);
+            auto* range = scene.get_component<NumberRange>(entity);
+            if (input.mouse_down(2) && value && range && mouse_interact->state == ClickState::hover) {
+                if (value->type == VarType::float64) {
+                    value->set<double>(range->default_value);
+                }
             }
         }
 
