@@ -3,6 +3,7 @@
 #include <utility>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 #include "ComponentSystem.h"
 #include "Input.h"
@@ -10,16 +11,25 @@
 #include "glm/vec2.hpp"
 #include "CommonStructs.h"
 
-//inline void* operator new(size_t size) {
-//    void* ptr = malloc(size);
-//    printf("allocated %i bytes at %p\n", size, ptr);
-//    return ptr;
-//}
-//
-//inline void operator delete(void* ptr) noexcept {
-//    free(ptr);
-//    printf("freed memory at %p\n", ptr);
-//}
+#ifdef _DEBUG
+static int chunks_allocated;
+static int chunks_deallocated;
+
+inline void* operator new(size_t size) {
+    void* ptr = malloc(size);
+    //printf("allocated %i bytes at %p\n", size, ptr);
+    chunks_allocated++;
+    printf("total chunks allocated: %i\t\t\r", chunks_allocated - chunks_deallocated);
+    return ptr;
+}
+
+inline void operator delete(void* ptr) noexcept {
+    free(ptr);
+    //printf("freed memory at %p\n", ptr);
+    chunks_deallocated++;
+    printf("total chunks allocated: %i\t\t\r", chunks_allocated - chunks_deallocated);
+}
+#endif
 
 #define N_VALUES 256
 
@@ -102,6 +112,7 @@ namespace Flan {
         AnchorPoint text_anchor;
         glm::vec4 color{};
         glm::vec2 scale{};
+        glm::vec2 margins = { 8, 8 };
     };
 
     struct NumberRange {
@@ -156,9 +167,10 @@ namespace Flan {
     struct Button{}; // This is a tag without data
     struct WheelKnob{}; // This is a tag without data
     struct Slider{};
-    struct Box{
-        glm::vec4 color;
-        float thickness;
+    struct Box {
+        glm::vec4 color_inner = { 0.25f, 0.25f, 0.25f, 1.0f };
+        glm::vec4 color_outer = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float thickness = 2.0f;
     };
 
     inline static char* value_names[256]{};
@@ -265,23 +277,27 @@ namespace Flan {
         scene.add_component<Transform>(entity, transform);
         scene.add_component<Clickable>(entity, {std::move(func)});
         scene.add_component<MouseInteract>(entity);
-        scene.add_component<Sprites>(entity, { {"button.png", TextureType::slice} });
-        scene.add_component<SpriteRender>(entity);
+        //scene.add_component<Sprites>(entity, { {"button.png", TextureType::slice} });
+        //scene.add_component<SpriteRender>(entity);
         scene.add_component<Text>(entity, text);
         scene.add_component<Button>(entity);
+        scene.add_component<Box>(entity, { {0.7f, 0.7f, 0.7f, 0.7f}, {1, 1, 1, 1}, 2.0f });
         return entity;
     }
 
     inline EntityID create_text(Scene& scene,
         const std::string& name,
         const Transform& transform,
-        Text&& text
+        Text&& text,
+        bool has_box = false
     ) {
         // Create entity and add components
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
         scene.add_component<Text>(entity, std::move(text));
         scene.add_component<Value>(entity, { name, VarType::wstring });
+        if (has_box)
+            scene.add_component<Box>(entity);
 
         // Bind the text string to the variable name
         const auto value_c = scene.get_component<Value>(entity);
@@ -308,8 +324,9 @@ namespace Flan {
         scene.add_component<Draggable>(entity);
         scene.add_component<Scrollable>(entity);
         scene.add_component<MouseInteract>(entity);
-        scene.add_component<Sprites>(entity, { {"numberbox.png", TextureType::slice} });
-        scene.add_component<SpriteRender>(entity);
+        scene.add_component<Box>(entity);
+        //scene.add_component<Sprites>(entity, { {"numberbox.png", TextureType::slice} });
+        //scene.add_component<SpriteRender>(entity);
         scene.add_component<Text>(entity, text);
         scene.get_component<Value>(entity)->set<double>(init_val);
         return entity;
@@ -441,12 +458,11 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        float thickness = 1.0f,
-        glm::vec4 color = {1, 1, 1, 1}
+        const Box& box
     ) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Box>(entity, {color, thickness});
+        scene.add_component<Box>(entity, box);
         return entity;
     }
 
@@ -514,8 +530,10 @@ namespace Flan {
             }
 
             // Calculate position relative to top_left
-            const glm::vec2 top_left = transform->top_left + glm::vec2(renderer.resolution()) * anchor_offsets[static_cast<size_t>(transform->anchor)];
-            const glm::vec2 offset_from_top_left = (transform->bottom_right - transform->top_left) * anchor_offsets[static_cast<size_t>(text->ui_anchor)];
+            glm::vec2 transform_top_left = transform->top_left + text->margins;
+            glm::vec2 transform_bottom_right = transform->bottom_right - text->margins;
+            const glm::vec2 top_left = transform_top_left + glm::vec2(renderer.resolution()) * anchor_offsets[static_cast<size_t>(transform->anchor)];
+            const glm::vec2 offset_from_top_left = (transform_bottom_right - transform_top_left) * anchor_offsets[static_cast<size_t>(text->ui_anchor)];
             renderer.draw_text({ {-9999, -9999}, {9999, 9999}, transform->depth, transform->anchor }, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
 #ifdef _DEBUG
             renderer.draw_circle_solid(*transform, top_left, { 4,4 }, { 1,0,1,1 });
@@ -709,7 +727,25 @@ namespace Flan {
         for (const auto entity : scene.view<Transform, Box>()) {
             auto* transform = scene.get_component<Transform>(entity);
             auto* box = scene.get_component<Box>(entity);
-            renderer.draw_box_line(*transform, transform->top_left, transform->bottom_right, box->color, box->thickness, transform->depth, transform->anchor);
+            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+
+            // Hovering and clicking affects color
+            float multiply = 1.0f;
+            if (mouse_interact) {
+                switch (mouse_interact->state) {
+                case ClickState::hover:
+                    multiply = 0.8f;
+                    break;
+                case ClickState::click:
+                    multiply = 0.6f;
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            renderer.draw_box_solid(*transform, transform->top_left, transform->bottom_right, box->color_inner * multiply, transform->depth + 0.001f, transform->anchor);
+            renderer.draw_box_line(*transform, transform->top_left, transform->bottom_right, box->color_outer, box->thickness, transform->depth, transform->anchor);
         }
     }
     
@@ -883,7 +919,7 @@ namespace Flan {
     }
 
     inline void system_comp_combobox(Scene& scene, Input& input, float delta_time, bool& combobox_handled) {
-        // Handle radio buttons
+        // Handle combobox
         for (const auto entity : scene.view<Transform, Value, Combobox, MultiHitbox>()) {
             auto* transform = scene.get_component<Transform>(entity);
             auto* combobox = scene.get_component<Combobox>(entity);

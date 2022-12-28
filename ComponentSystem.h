@@ -10,6 +10,9 @@ namespace Flan {
         size_t comp_size = 0;
 
         Pool() = default;
+        ~Pool() {
+            free(pool);
+        }
 
         void init(size_t comp_size_) {
             comp_size = comp_size_;
