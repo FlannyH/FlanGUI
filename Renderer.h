@@ -87,10 +87,10 @@ namespace Flan {
         void draw_box_line(Transform transform, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_box_solid(Transform transform, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_box_textured(Transform transform, const::std::string& texture, TextureType tex_type, glm::vec2 top_left, glm::vec2 bottom_right, glm::vec4 color, float depth = 0.f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_polygon_textured(Transform transform, std::vector<Vertex> verts, const std::string& texture, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_polygon_textured(Transform transform, Vertex* verts, size_t n_verts, const std::string& texture, const AnchorPoint anchor = AnchorPoint::top_left);
         void draw_circle_line(Transform transform, glm::vec2 center, glm::vec2 scale, glm::vec4 color, float width = 1.0f, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
         void draw_circle_solid(Transform transform, glm::vec2 center, glm::vec2 scale, glm::vec4 color, float depth = 0.0f, AnchorPoint anchor = AnchorPoint::top_left);
-        void draw_flat_polygon(Transform transform, std::vector<Vertex> verts, AnchorPoint anchor = AnchorPoint::top_left);
+        void draw_flat_polygon(Transform transform, Vertex* verts, size_t n_verts, const AnchorPoint anchor);
         void get_texture(const std::string& texture);
         void draw_text(Transform transform, const std::wstring& text, glm::vec2 pos, glm::vec2 scale, glm::vec4 color, float depth, AnchorPoint ui_anchor = AnchorPoint::top_left, AnchorPoint text_anchor = AnchorPoint::top_left);
         void set_clipping_rectangle(bool enabled, glm::vec2 top_left = {0.0f, 0.0f}, glm::vec2 bottom_right = {0.0f, 0.0f});

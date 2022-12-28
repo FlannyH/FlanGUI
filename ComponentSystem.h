@@ -38,8 +38,47 @@ namespace Flan {
 
     using EntityID = size_t;
 
+    class SceneViewIterator {
+    public:
+        SceneViewIterator(EntityID*& set_entities, size_t set_index) : entities(set_entities), index(set_index) {}
+        SceneViewIterator& operator++() {
+            ++index;
+            return *this;
+        }
+
+        EntityID& operator*() {
+            return entities[index];
+        }
+
+        bool operator==(const SceneViewIterator& other) {
+            return entities == other.entities && index == other.index;
+        }
+
+        bool operator!=(const SceneViewIterator& other) {
+            return !(*this == other);
+        }
+
+    private:
+        EntityID*& entities;
+        size_t index;
+    };
+
+    struct SceneView {
+        EntityID* entities;
+        size_t n_entities;
+        SceneViewIterator begin() {
+            return SceneViewIterator(entities, 0);
+        }
+        SceneViewIterator end() {
+            return SceneViewIterator(entities, n_entities);
+        }
+    };
+
     class Scene {
     public:
+        Scene() {
+            view_out = new EntityID[8192];
+        }
         EntityID new_entity();
         // Add a component from an entity, initializing the component by copying an existing object
         template <typename T>
@@ -59,10 +98,11 @@ namespace Flan {
 
         // Get a view of all the components with the given components
         template <typename t1, typename t2 = void, typename t3 = void, typename t4 = void>
-        std::vector<EntityID> view();
+        SceneView view();
     private:
         std::vector<Pool> _pools = std::vector<Pool>(64);
         std::vector<uint64_t> _entities;
+        EntityID* view_out;
     };
 
 }
@@ -129,8 +169,8 @@ namespace Flan {
     }
 
     template <typename t1, typename t2, typename t3, typename t4>
-    std::vector<EntityID> Scene::view() {
-        std::vector<EntityID> out;
+    SceneView Scene::view() {
+        size_t entity_id = 0;
         for (EntityID i = 0; i < _entities.size(); i++) {
             // If the first component isn't present, skip this entity
             if ((_entities[i] & (1ull << get_comp_id<t1>())) == 0) {
@@ -149,9 +189,9 @@ namespace Flan {
                 continue;
             }
             // Otherwise, add it to the view
-            out.push_back(i);
+            view_out[entity_id++] = i;
         }
-        return out;
+        return { view_out, entity_id };
     }
 
     inline EntityID Scene::new_entity() {

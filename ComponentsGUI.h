@@ -9,7 +9,7 @@
 #include "Renderer.h"
 #include "glm/vec2.hpp"
 #include "CommonStructs.h"
-//
+
 //inline void* operator new(size_t size) {
 //    void* ptr = malloc(size);
 //    printf("allocated %i bytes at %p\n", size, ptr);
@@ -71,7 +71,8 @@ namespace Flan {
 
     struct Text {
         Text(const std::wstring& string = std::wstring(), const glm::vec2 scl = {2, 2}, const glm::vec4 col = {1, 1, 1, 1}, const AnchorPoint ui_anchr = AnchorPoint::top_left, const AnchorPoint txt_anchr = AnchorPoint::top_left) {
-            text = new wchar_t[string.size()+1];
+            text_length = string.size() + 1;
+            text = new wchar_t[text_length];
             memcpy_s(text, (string.size() + 1) * sizeof(string[0]), string.data(), (string.size() + 1) * sizeof(string[0]));
             ui_anchor = txt_anchr;
             text_anchor = ui_anchr;
@@ -86,8 +87,9 @@ namespace Flan {
         Text(const Text& other) {
             // Copy values
             auto tmp = std::wstring(other.text);
-            text = new wchar_t[(tmp.size() + 1)];
-            memcpy_s(text, (tmp.size() + 1) * 2, tmp.data(), (tmp.size() + 1) * 2);
+            text_length = tmp.size() + 1;
+            text = new wchar_t[text_length];
+            memcpy_s(text, text_length * 2, tmp.data(), text_length * 2);
             ui_anchor = other.ui_anchor;
             text_anchor = other.text_anchor;
             color = other.color;
@@ -95,6 +97,7 @@ namespace Flan {
         }
 
         wchar_t* text;
+        size_t text_length;
         AnchorPoint ui_anchor;
         AnchorPoint text_anchor;
         glm::vec4 color{};
@@ -470,8 +473,10 @@ namespace Flan {
                 }
                 if (value->type == VarType::float64) {
                     double& val = Value::get<double>(value->index);
-                    delete text->text;
-                    text->text = new wchar_t[32];
+                    if (text->text_length < 32) {
+                        delete text->text;
+                        text->text = new wchar_t[32];
+                    }
 
                     //If all parts of the range are a whole number, print as if it were an integer
                     if (range) {
