@@ -156,6 +156,10 @@ namespace Flan {
     struct Button{}; // This is a tag without data
     struct WheelKnob{}; // This is a tag without data
     struct Slider{};
+    struct Box{
+        glm::vec4 color;
+        float thickness;
+    };
 
     inline static char* value_names[256]{};
     inline static uint64_t value_pool[256]{};
@@ -281,8 +285,10 @@ namespace Flan {
 
         // Bind the text string to the variable name
         const auto value_c = scene.get_component<Value>(entity);
+        wchar_t* text_to_put = new wchar_t[text.text_length + 1];
+        memcpy_s(text_to_put, (text.text_length + 1) * 2, text.text, (text.text_length + 1) * 2);
         Value::bind(name, value_c->index);
-        Value::set_ptr(name, new std::wstring(L"TEST"));
+        Value::set_ptr(name, text_to_put);
 
         return entity;
     }
@@ -407,8 +413,8 @@ namespace Flan {
         MultiHitbox multi_hitbox{};
         multi_hitbox.hitboxes[0].top_left = { 0, 0 };
         multi_hitbox.hitboxes[0].bottom_right = transform.bottom_right - transform.top_left;
-        multi_hitbox.hitboxes[1].top_left = { 0, transform.bottom_right.y };
-        multi_hitbox.hitboxes[1].bottom_right = { transform.top_left.x, transform.bottom_right.y + list_height };
+        multi_hitbox.hitboxes[1].top_left = { 0, transform.bottom_right.y - transform.top_left.y };
+        multi_hitbox.hitboxes[1].bottom_right = { transform.bottom_right.x - transform.top_left.x, transform.bottom_right.y + list_height };
         multi_hitbox.n_hitboxes = 2;
 
         // Create combobox component
@@ -419,6 +425,7 @@ namespace Flan {
         combobox.current_selected_index = initial_index;
         combobox.current_scroll_position = 0.0f;
         combobox.list_items = items;
+        combobox.button_height = transform.bottom_right.y - transform.top_left.y;
 
         // Create entity
         const EntityID entity = scene.new_entity();
@@ -427,6 +434,19 @@ namespace Flan {
         scene.add_component<MouseInteract>(entity);
         scene.add_component<MultiHitbox>(entity, multi_hitbox);
         scene.add_component<Combobox>(entity, combobox);
+        return entity;
+    }
+
+    inline EntityID create_box(
+        Scene& scene,
+        const std::string& name,
+        const Transform& transform,
+        float thickness = 1.0f,
+        glm::vec4 color = {1, 1, 1, 1}
+    ) {
+        const EntityID entity = scene.new_entity();
+        scene.add_component<Transform>(entity, transform);
+        scene.add_component<Box>(entity, {color, thickness});
         return entity;
     }
 
@@ -497,7 +517,9 @@ namespace Flan {
             const glm::vec2 top_left = transform->top_left + glm::vec2(renderer.resolution()) * anchor_offsets[static_cast<size_t>(transform->anchor)];
             const glm::vec2 offset_from_top_left = (transform->bottom_right - transform->top_left) * anchor_offsets[static_cast<size_t>(text->ui_anchor)];
             renderer.draw_text({ {-9999, -9999}, {9999, 9999}, transform->depth, transform->anchor }, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
+#ifdef _DEBUG
             renderer.draw_circle_solid(*transform, top_left, { 4,4 }, { 1,0,1,1 });
+#endif
         }
     }
 
@@ -616,13 +638,20 @@ namespace Flan {
             glm::vec2 box_top_left = transform->top_left;
             glm::vec2 box_bottom_right = { transform->bottom_right.x, transform->top_left.y + combobox->button_height };
             glm::vec2 arrow_center = { transform->bottom_right.x - 30.f, transform->top_left.y + (combobox->button_height / 2) + 8 };
-            glm::vec2 text_offset = { 8, -20 + transform->top_left.y + (combobox->button_height / 2) };
+            glm::vec2 text_offset = { 8, (combobox->button_height / 2) };
             glm::vec2 arrow_offset = { 16, -16 };
             renderer.draw_box_solid(*transform, box_top_left, box_bottom_right, top_color, transform->depth + 0.01f, transform->anchor);
             renderer.draw_box_line(*transform, box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth, 0, transform->anchor);
             renderer.draw_text(*transform, combobox->list_items[combobox->current_selected_index], transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
             renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(+1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
             renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(-1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
+
+            // Debug
+#ifdef _DEBUG
+            for (size_t i = 0; i < multi_hitbox->n_hitboxes; ++i) {
+                renderer.draw_box_line(*transform, transform->top_left + multi_hitbox->hitboxes[i].top_left, transform->top_left + multi_hitbox->hitboxes[i].bottom_right, {1, 1, 0, 1}, 2.0f);
+            }
+#endif
 
             // Render the list if necessary
             size_t start_index = size_t(combobox->current_scroll_position / combobox->item_height);
@@ -637,7 +666,7 @@ namespace Flan {
                     // Get transform information
                     box_top_left = transform->top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * i) - combobox->current_scroll_position);
                     box_bottom_right = { transform->bottom_right.x, box_top_left.y + combobox->item_height };
-                    text_offset = { 8, -20 + transform->top_left.y + (combobox->item_height / 2.0f) };
+                    text_offset = { 8, combobox->item_height / 2.0f };
 
                     // Determine a nice color based on what the mouse is doing
                     glm::vec4 color = { 1, 1, 1, 1 };
@@ -674,6 +703,13 @@ namespace Flan {
                     renderer.draw_text(*transform, combobox->list_items[i], box_top_left + text_offset, { 2, 2 }, { 0, 0, 0, 1 }, transform->depth + 0.02f, transform->anchor, AnchorPoint::left);
                 }
             }
+        }
+
+        // Box
+        for (const auto entity : scene.view<Transform, Box>()) {
+            auto* transform = scene.get_component<Transform>(entity);
+            auto* box = scene.get_component<Box>(entity);
+            renderer.draw_box_line(*transform, transform->top_left, transform->bottom_right, box->color, box->thickness, transform->depth, transform->anchor);
         }
     }
     
@@ -885,14 +921,20 @@ namespace Flan {
                 // If we are hovered over the list, scroll the list
                 if (multi_hitbox->click_states[1] == ClickState::hover) {
                     combobox->target_scroll_position -= input.mouse_wheel() * combobox->item_height * 1.25f;
-                    combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
+                    float min = 0.0f;
+                    float max = combobox->item_height * combobox->list_items.size() - combobox->list_height;
+                    max = std::max(min, max);
+                    combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, min, max);
                 }
 
                 // Otherwise if we are hovered over the button, change the index
                 if (multi_hitbox->click_states[0] == ClickState::hover) {
                     combobox->current_selected_index -= (int)input.mouse_wheel();
                     combobox->target_scroll_position = (combobox->current_selected_index - 0.5f) * combobox->item_height ;
-                    combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, 0.0f, combobox->item_height * combobox->list_items.size() - combobox->list_height);
+                    float min = 0.0f;
+                    float max = combobox->item_height * combobox->list_items.size() - combobox->list_height;
+                    max = std::max(min, max);
+                    combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, min, max);
                     combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, int(combobox->list_items.size()) - 1);
                     value->get_as_ref<double>() = combobox->current_selected_index;
                 }
@@ -931,9 +973,11 @@ namespace Flan {
         }
 
         // Debug
+#ifdef _DEBUG
         for (const auto entity : scene.view<Transform>()) {
             const auto* transform = scene.get_component<Transform>(entity);
             renderer.draw_box_line(*transform, transform->top_left, transform->bottom_right, { 1, 0, 1, 1 }, 1, 0, transform->anchor);
         }
+#endif
     }
 }

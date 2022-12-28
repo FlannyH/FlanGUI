@@ -639,8 +639,10 @@ namespace Flan {
                     width = 0;
                     continue;
                 }
-                auto& wentry = _wchar_lut[static_cast<wchar_t>(c)];
-                width += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
+
+                std::vector<int>& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+                if (!wentry.empty())
+                    width += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
             }
             widths.push_back(width); // the final width doesn't get added in the for loop, do that manually
         }
@@ -684,7 +686,8 @@ namespace Flan {
             }
 
             // Create verts
-            auto& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+            std::vector<int>& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc = wentry[i];
                 glm::vec4 color_noalpha = color * glm::vec4(1, 1, 1, 0);
