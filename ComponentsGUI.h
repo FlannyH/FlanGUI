@@ -45,12 +45,7 @@ namespace Flan {
         click
     };
 
-    struct Clickable {
-        Clickable(std::function<void()> click) {
-            on_click = std::move(click);
-        }
-        std::function<void()> on_click;
-    };
+    struct Clickable {};
 
     struct MouseInteract {
         ClickState state = ClickState::idle;
@@ -174,6 +169,12 @@ namespace Flan {
         glm::vec4 color_outer = { 1.0f, 1.0f, 1.0f, 1.0f };
         float thickness = 2.0f;
     };
+    struct Function {
+        Function(std::function<void()> click) {
+            on_click = std::move(click);
+        }
+        std::function<void()> on_click;
+    };
 
     inline static char* value_names[256]{};
     inline static uint64_t value_pool[256]{};
@@ -277,7 +278,8 @@ namespace Flan {
     ) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Clickable>(entity, {std::move(func)});
+        scene.add_component<Function>(entity, {std::move(func)});
+        scene.add_component<Clickable>(entity);
         scene.add_component<MouseInteract>(entity);
         //scene.add_component<Sprites>(entity, { {"button.png", TextureType::slice} });
         //scene.add_component<SpriteRender>(entity);
@@ -750,6 +752,7 @@ namespace Flan {
         for (const auto entity : scene.view<Transform, MouseInteract>()) {
             const auto* transform = scene.get_component<Transform>(entity);
             auto* clickable = scene.get_component<Clickable>(entity);
+            auto* function = scene.get_component<Function>(entity);
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
 
             // Get mouse position, and get an actual correct top-left and bottom-right
@@ -786,9 +789,9 @@ namespace Flan {
             // If we release the mouse while this element is in click state,
             if (input.mouse_up(0) && mouse_interact->state == ClickState::click) {
                 // and the mouse is still on the component, and the component is clickable
-                if (is_inside_bb && clickable) {
+                if (is_inside_bb && clickable && function) {
                     // Call the function of this clickable
-                    clickable->on_click();
+                    function->on_click();
                 }
                 // Reset the MouseInteract state back to idle
                 mouse_interact->state = ClickState::idle;
