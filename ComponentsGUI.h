@@ -190,6 +190,7 @@ namespace Flan {
         // Index into value pool
         size_t index{};
         VarType type{};
+        bool has_changed = false;
 
         // Assign a new value index
         Value() {
@@ -248,6 +249,7 @@ namespace Flan {
         void set(T value) {
             static_assert(sizeof(T) <= sizeof(value_pool[0]));
             get_as_ref<T>() = (T)value;
+            has_changed = true;
         }
 
         // Set the current value
@@ -465,6 +467,14 @@ namespace Flan {
         scene.add_component<Transform>(entity, transform);
         scene.add_component<Box>(entity, box);
         return entity;
+    }
+
+    inline void add_function(
+        Scene& scene,
+        EntityID entity,
+        std::function<void()> func
+    ) {
+        scene.add_component<Function>(entity, { std::move(func) });
     }
 
     inline void system_comp_sprite(Scene& scene, Renderer& renderer) {
@@ -708,7 +718,7 @@ namespace Flan {
                             color *= 0.7f;
                             combobox->current_selected_index = i;
                             combobox->is_list_open = false;
-                            value->get_as_ref<double>() = static_cast<double>(i);
+                            value->set<double>(static_cast<double>(i));
                             break;
                         }
                     }
@@ -851,6 +861,7 @@ namespace Flan {
             if (mouse_interact->state == ClickState::click) {
                 // Get a reference to the value
                 double& val = value->get_as_ref<double>();
+                double old_val = val;
 
                 // Map the mouse movement to the value
                 if (draggable && draggable->is_horizontal) {
@@ -863,6 +874,9 @@ namespace Flan {
                 // Clamp the value to the bounds
                 val = std::max(val, number_range->min);
                 val = std::min(val, number_range->max);
+
+                // Handle changed variable, since we didn't use set
+                value->has_changed = (val != old_val);
 
                 // Make the mouse invisible
                 input.mouse_visible(false);
@@ -879,6 +893,7 @@ namespace Flan {
             if (mouse_interact->state == ClickState::hover) {
                 // Get a reference to the value
                 double& val = value->get_as_ref<double>();
+                double old_val = val;
 
                 // Map the vertical mouse scroll to the value
                 val += static_cast<double>(input.mouse_wheel()) * number_range->step;
@@ -886,6 +901,9 @@ namespace Flan {
                 // Clamp the value to the bounds
                 val = std::max(val, number_range->min);
                 val = std::min(val, number_range->max);
+
+                // Handle changed variable, since we didn't use set
+                value->has_changed = (val != old_val);
             }
         }
     }
@@ -918,7 +936,7 @@ namespace Flan {
                     {
                         // If so, select that value
                         radio_button->current_selected_index = i;
-                        value->get_as_ref<double>() = static_cast<double>(i);
+                        value->set<double>(static_cast<double>(i));
                     }
                 }
             }
@@ -979,7 +997,7 @@ namespace Flan {
                     max = std::max(min, max);
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, min, max);
                     combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, int(combobox->list_items.size()) - 1);
-                    value->get_as_ref<double>() = combobox->current_selected_index;
+                    value->set<double>(combobox->current_selected_index);
                 }
             }
 
@@ -1013,6 +1031,16 @@ namespace Flan {
 
             // Handle radio buttons
             system_comp_radio_buttons(scene, renderer, input);
+        }
+
+        // Handle value changes
+        for (const auto entity : scene.view<Value, Function>()) {
+            auto* value = scene.get_component<Value>(entity);
+            auto* function = scene.get_component<Function>(entity);
+            if (value->has_changed) {
+                value->has_changed = false;
+                function->on_click();
+            }
         }
 
         // Debug
