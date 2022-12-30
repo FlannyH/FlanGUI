@@ -208,10 +208,8 @@ namespace Flan {
             scene.add_component<Box>(entity);
 
         // Bind the text string to the variable name
-        const auto value_c = scene.get_component<Value>(entity);
         wchar_t* text_to_put = new wchar_t[text.text_length + 1];
         memcpy_s(text_to_put, (text.text_length + 1) * 2, text.text, (text.text_length + 1) * 2);
-        scene.value_pool.bind(name, value_c->index);
         scene.value_pool.set_ptr(name, text_to_put);
 
         return entity;
@@ -344,7 +342,7 @@ namespace Flan {
         combobox.is_list_open = false;
         combobox.item_height = item_height;
         combobox.list_height = list_height;
-        combobox.current_selected_index = initial_index;
+        combobox.current_selected_index = (int)initial_index;
         combobox.current_scroll_position = 0.0f;
         combobox.list_items = items;
         combobox.button_height = transform.bottom_right.y - transform.top_left.y;
@@ -361,7 +359,6 @@ namespace Flan {
 
     inline EntityID create_box(
         Scene& scene,
-        const std::string& name,
         const Transform& transform,
         const Box& box
     ) {
@@ -421,7 +418,7 @@ namespace Flan {
                     text->text = string;
                 }
                 if (value->type == VarType::float64) {
-                    double& val = scene.value_pool.get<double>(value->index);
+                    double& val = scene.value_pool.get<double>(value->name);
                     if (text->text_length < 32) {
                         delete text->text;
                         text->text = new wchar_t[32];
@@ -433,7 +430,7 @@ namespace Flan {
                     swprintf_s(text->text, 32, L"%.2f", val);
                     if (range) {
                         wchar_t filter[] = L"%.xf";
-                        filter[2] = L'0' + range->visual_decimal_places;
+                        filter[2] = L'0' + (wchar_t)range->visual_decimal_places;
                         swprintf_s(text->text, 32, filter, val);
                     }
                 }
@@ -586,7 +583,7 @@ namespace Flan {
 
             // Render the list if necessary
             size_t start_index = size_t(combobox->current_scroll_position / combobox->item_height);
-            size_t end_index = start_index + combobox->list_height / combobox->item_height + 1;
+            size_t end_index = start_index + (size_t)(combobox->list_height / combobox->item_height) + 1;
             if (abs(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
                 for (size_t i = start_index; i <= end_index; ++i)
                 {
@@ -621,7 +618,7 @@ namespace Flan {
                             // This is a bit cursed, but it'll have to do
                             // We will actually update the combobox selected index in the rendering code, since we already do a ton of logic here to figure out where the mouse is anyway
                             color *= 0.7f;
-                            combobox->current_selected_index = i;
+                            combobox->current_selected_index = (int)i;
                             combobox->is_list_open = false;
                             value->set<double>(static_cast<double>(i));
                             break;
