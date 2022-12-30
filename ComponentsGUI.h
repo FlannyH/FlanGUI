@@ -10,6 +10,7 @@
 #include "Renderer.h"
 #include "glm/vec2.hpp"
 #include "CommonStructs.h"
+#include "../FlanSoundfontPlayer/Source/ValueSystem.h"
 
 #ifdef _DEBUG
 static int chunks_allocated;
@@ -30,8 +31,6 @@ inline void operator delete(void* ptr) noexcept {
     printf("total chunks allocated: %i\t\t\r", chunks_allocated - chunks_deallocated);
 }
 #endif
-
-#define N_VALUES 256
 
 namespace Flan {
     template <typename T>
@@ -176,103 +175,6 @@ namespace Flan {
         std::function<void()> on_click;
     };
 
-    inline static char* value_names[256]{};
-    inline static uint64_t value_pool[256]{};
-    inline static size_t value_pool_idx = 0;
-
-    enum class VarType {
-        none,
-        wstring,
-        float64
-    };
-
-    struct Value {
-        // Index into value pool
-        size_t index{};
-        VarType type{};
-        bool has_changed = false;
-
-        // Assign a new value index
-        Value() {
-            index = value_pool_idx++;
-        }
-
-        // Assign a new value index with a name
-        Value(const std::string& name, const VarType var_type) {
-            // If this name already exist, bind to that one
-            index = get_index_from_name(name);
-            type = var_type;
-        }
-
-        // Get variable index from name
-        static size_t get_index_from_name(const std::string& name) {
-            // If exists, return index
-            for (int i = 0; i < N_VALUES; i++) {
-                if (value_names[i] != nullptr && name == value_names[i]) {
-                    return i;
-                }
-            }
-            // Otherwise create new variable
-            value_names[value_pool_idx] = new char[name.size() + 1];
-            strcpy_s(value_names[value_pool_idx], name.size() + 1, name.c_str());
-            value_pool[value_pool_idx] = 0;
-            return value_pool_idx++;
-        }
-
-        // Get the current value
-        template<typename T>
-        T& get_as_ref() {
-            static_assert(sizeof(T) <= sizeof(value_pool[0]));
-            return (T&)(value_pool[index]);
-        }
-        template<typename T>
-        T* get_as_ptr() {
-            return reinterpret_cast<T*>(value_pool[index]);
-        }
-
-        // Get value from index
-        template<typename T>
-        static T& get(const size_t index) {
-            static_assert(sizeof(T) <= sizeof(value_pool[0]));
-            return (T&)(value_pool[index]);
-        }
-
-        // Get value from name
-        template<typename T>
-        static T& get(const std::string& name) {
-            static_assert(sizeof(T) <= sizeof(value_pool[0]));
-            return (T&)(value_pool[get_index_from_name(name)]);
-        }
-
-        // Set the current value
-        template<typename T>
-        void set(T value) {
-            static_assert(sizeof(T) <= sizeof(value_pool[0]));
-            get_as_ref<T>() = (T)value;
-            has_changed = true;
-        }
-
-        // Set the current value
-        template<typename T>
-        static void set_value(const std::string& name, T value) {
-            static_assert(sizeof(T) <= sizeof(value_pool[0]));
-            value_pool[get_index_from_name(name)] = *(uint64_t*)&value;
-        }
-
-        // Set the current pointer
-        template<typename T>
-        static void set_ptr(const std::string& name, T* value) {
-            value_pool[get_index_from_name(name)] = reinterpret_cast<uint64_t>(value);
-        }
-
-        // Bind a name to a value
-        static void bind(const std::string& name, const size_t index) {
-            value_names[index] = new char[name.size() + 1];
-            strcpy_s(value_names[index], name.size() + 1, name.c_str());
-        }
-    };
-
-
     inline EntityID create_button(Scene& scene, 
         const Transform& transform,
         std::function<void()> func,
@@ -301,7 +203,7 @@ namespace Flan {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
         scene.add_component<Text>(entity, std::move(text));
-        scene.add_component<Value>(entity, { name, VarType::wstring });
+        scene.add_component<Value>(entity, { name, VarType::wstring, scene.value_pool });
         if (has_box)
             scene.add_component<Box>(entity);
 
@@ -309,8 +211,8 @@ namespace Flan {
         const auto value_c = scene.get_component<Value>(entity);
         wchar_t* text_to_put = new wchar_t[text.text_length + 1];
         memcpy_s(text_to_put, (text.text_length + 1) * 2, text.text, (text.text_length + 1) * 2);
-        Value::bind(name, value_c->index);
-        Value::set_ptr(name, text_to_put);
+        scene.value_pool.bind(name, value_c->index);
+        scene.value_pool.set_ptr(name, text_to_put);
 
         return entity;
     }
@@ -324,7 +226,7 @@ namespace Flan {
     ) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Value>(entity, { name, VarType::float64 });
+        scene.add_component<Value>(entity, { name, VarType::float64, scene.value_pool });
         scene.add_component<NumberRange>(entity, range);
         scene.add_component<Draggable>(entity);
         scene.add_component<Scrollable>(entity);
@@ -346,7 +248,7 @@ namespace Flan {
     ) {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Value>(entity, { name, VarType::float64 });
+        scene.add_component<Value>(entity, { name, VarType::float64, scene.value_pool });
         scene.add_component<NumberRange>(entity, range);
         scene.add_component<Draggable>(entity);
         scene.add_component<Scrollable>(entity);
@@ -374,7 +276,7 @@ namespace Flan {
 
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Value>(entity, { name, VarType::float64 });
+        scene.add_component<Value>(entity, { name, VarType::float64, scene.value_pool });
         scene.add_component<NumberRange>(entity, range);
         scene.add_component<Draggable>(entity, { is_horizontal });
         scene.add_component<Scrollable>(entity);
@@ -412,7 +314,7 @@ namespace Flan {
         // Create entity
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Value>(entity, { name, VarType::float64 }); //todo: make add int type
+        scene.add_component<Value>(entity, { name, VarType::float64, scene.value_pool }); //todo: make add int type
         scene.add_component<MultiHitbox>(entity, multihitbox);
         scene.add_component<RadioButton>(entity, {options, initial_index});
         scene.add_component<MouseInteract>(entity);
@@ -450,7 +352,7 @@ namespace Flan {
         // Create entity
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Value>(entity, { name, VarType::float64 }); //todo: make add int type
+        scene.add_component<Value>(entity, { name, VarType::float64, scene.value_pool }); //todo: make add int type
         scene.add_component<MouseInteract>(entity);
         scene.add_component<MultiHitbox>(entity, multi_hitbox);
         scene.add_component<Combobox>(entity, combobox);
@@ -519,7 +421,7 @@ namespace Flan {
                     text->text = string;
                 }
                 if (value->type == VarType::float64) {
-                    double& val = Value::get<double>(value->index);
+                    double& val = scene.value_pool.get<double>(value->index);
                     if (text->text_length < 32) {
                         delete text->text;
                         text->text = new wchar_t[32];

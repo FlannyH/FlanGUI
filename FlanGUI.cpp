@@ -84,11 +84,11 @@ int main()
             input.mouse_down(0), input.mouse_down(1), input.mouse_down(2),
             input.mouse_up(0), input.mouse_up(1), input.mouse_up(2),
             input.mouse_wheel(),
-            Flan::Value::get<double>("debug_numberbox"),
-            Flan::Value::get<double>("debug_radio_button"),
-            Flan::Value::get<double>("debug_combobox")
+            scene.value_pool.get<double>("debug_numberbox"),
+            scene.value_pool.get<double>("debug_radio_button"),
+            scene.value_pool.get<double>("debug_combobox")
         );
-        Flan::Value::set_ptr("debug_text", &frametime_text);
+        scene.value_pool.set_ptr("debug_text", &frametime_text);
         Flan::update_entities(scene, renderer, input, dt);
 
         renderer.end_frame();

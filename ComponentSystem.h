@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cassert>
+#include "../FlanSoundfontPlayer/Source/ValueSystem.h"
 
 #define MAX_ENTITIES 1024
 
@@ -102,6 +103,9 @@ namespace Flan {
         // Get a view of all the components with the given components
         template <typename t1, typename t2 = void, typename t3 = void, typename t4 = void>
         SceneView view();
+
+        // This stores the variables that this plugin instance will use
+        ValuePool value_pool;
     private:
         std::vector<Pool> _pools = std::vector<Pool>(64);
         std::vector<uint64_t> _entities;
