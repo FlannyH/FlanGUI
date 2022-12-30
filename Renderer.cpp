@@ -684,6 +684,10 @@ namespace Flan {
                 cur_pos.x = pos.x;
                 continue;
             }
+            if (c == '\t') {
+                cur_pos.x += _font.grid_h * 4;
+                continue;
+            }
 
             // Create verts
             std::vector<int>& wentry = _wchar_lut[static_cast<wchar_t>(c)];

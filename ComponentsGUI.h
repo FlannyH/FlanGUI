@@ -256,7 +256,7 @@ namespace Flan {
         template<typename T>
         static void set_value(const std::string& name, T value) {
             static_assert(sizeof(T) <= sizeof(value_pool[0]));
-            value_pool[get_index_from_name(name)] = value;
+            value_pool[get_index_from_name(name)] = *(uint64_t*)&value;
         }
 
         // Set the current pointer
@@ -668,7 +668,10 @@ namespace Flan {
             glm::vec2 arrow_offset = { 16, -16 };
             renderer.draw_box_solid(*transform, box_top_left, box_bottom_right, top_color, transform->depth + 0.01f, transform->anchor);
             renderer.draw_box_line(*transform, box_top_left, box_bottom_right, { 0, 0, 0, 1 }, transform->depth, 0, transform->anchor);
-            renderer.draw_text(*transform, combobox->list_items[combobox->current_selected_index], transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
+            if (combobox->current_selected_index != -1)
+                renderer.draw_text(*transform, combobox->list_items[combobox->current_selected_index], transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
+            else 
+                renderer.draw_text(*transform, L"<no item selected>", transform->top_left + text_offset, {2, 2}, {0, 0, 0, 0}, transform->depth - 0.01f, transform->anchor, AnchorPoint::left);
             renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(+1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
             renderer.draw_line(*transform, arrow_center, arrow_center + arrow_offset * glm::vec2(-1, 1), {0, 0, 0, 1}, 2, transform->depth - 0.01f, transform->anchor);
 
