@@ -3,7 +3,6 @@
 #include <utility>
 #include <cmath>
 #include <algorithm>
-#include <iostream>
 
 #include "ComponentSystem.h"
 #include "Input.h"
@@ -90,7 +89,7 @@ namespace Flan {
 
         Text(const Text& other) {
             // Copy values
-            auto tmp = std::wstring(other.text);
+            const auto tmp = std::wstring(other.text);
             text_length = tmp.size() + 1;
             text = new wchar_t[text_length];
             memcpy_s(text, text_length * 2, tmp.data(), text_length * 2);
@@ -126,7 +125,7 @@ namespace Flan {
         // The minimum and maximum x and y coordinates of the hitbox, in pixels relative to the transform of the component.
         // Note that the y-coordinate of the top of the hitbox is 0 and it increases as it goes down.
         glm::vec2 top_left{}, bottom_right{};
-        bool intersects(glm::vec2 pos) {
+        bool intersects(glm::vec2 pos) const {
             return (
                 pos.x >= top_left.x &&
                 pos.x <= bottom_right.x &&
@@ -202,14 +201,14 @@ namespace Flan {
         // Create entity and add components
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
-        scene.add_component<Text>(entity, std::move(text));
+        scene.add_component<Text>(entity, text);
         scene.add_component<Value>(entity, { name, VarType::wstring, scene.value_pool });
         if (has_box)
             scene.add_component<Box>(entity);
 
         // Bind the text string to the variable name
         wchar_t* text_to_put = new wchar_t[text.text_length + 1];
-        memcpy_s(text_to_put, (text.text_length + 1) * 2, text.text, (text.text_length + 1) * 2);
+        memcpy_s(text_to_put, text.text_length * 2, text.text, text.text_length * 2);
         scene.value_pool.set_ptr(name, text_to_put);
 
         return entity;
@@ -262,7 +261,7 @@ namespace Flan {
         const std::string& name,
         const Transform& transform,
         const NumberRange& range = { 0.0, 100.0, 1.0, 0.0, 0 },
-        bool has_text = true,
+        const bool has_text = true,
         Text text = { L"",{2, 2}, {1,1,1,1}, AnchorPoint::center, AnchorPoint::bottom, }
     ) {
         const glm::vec2 scale = transform.bottom_right - transform.top_left;
@@ -289,14 +288,14 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        std::vector<std::wstring> options,
+        const std::vector<std::wstring>& options,
         const size_t initial_index = 0
     )
     {
         // Create hitboxes for the radio buttons
         MultiHitbox multihitbox{};
         float curr_y = 0;
-        float delta_y = (transform.bottom_right.y - transform.top_left.y) / options.size();
+        const float delta_y = (transform.bottom_right.y - transform.top_left.y) / static_cast<float>(options.size());
 
         // Populate hitboxes
         for (size_t i = 0; i < options.size(); ++i) {
@@ -323,7 +322,7 @@ namespace Flan {
         Scene& scene,
         const std::string& name,
         const Transform& transform,
-        std::vector<std::wstring> items,
+        const std::vector<std::wstring>& items,
         const size_t initial_index = 0,
         const float item_height = 40.0f,
         const float list_height = 420.0f
@@ -342,7 +341,7 @@ namespace Flan {
         combobox.is_list_open = false;
         combobox.item_height = item_height;
         combobox.list_height = list_height;
-        combobox.current_selected_index = (int)initial_index;
+        combobox.current_selected_index = static_cast<int>(initial_index);
         combobox.current_scroll_position = 0.0f;
         combobox.list_items = items;
         combobox.button_height = transform.bottom_right.y - transform.top_left.y;
@@ -370,7 +369,7 @@ namespace Flan {
 
     inline void add_function(
         Scene& scene,
-        EntityID entity,
+        const EntityID entity,
         std::function<void()> func
     ) {
         scene.add_component<Function>(entity, { std::move(func) });
@@ -399,7 +398,7 @@ namespace Flan {
             const auto* transform = scene.get_component<Transform>(entity);
             auto* text = scene.get_component<Text>(entity);
             auto* value = scene.get_component<Value>(entity);
-            auto* range = scene.get_component<NumberRange>(entity);
+            const auto* range = scene.get_component<NumberRange>(entity);
             const glm::vec2 anchor_offsets[] = {
                 {0.5f, 0.5f}, // center
                 {0.0f, 0.0f}, // top left
@@ -418,7 +417,7 @@ namespace Flan {
                     text->text = string;
                 }
                 if (value->type == VarType::float64) {
-                    double& val = scene.value_pool.get<double>(value->name);
+                    const double& val = scene.value_pool.get<double>(value->name);
                     if (text->text_length < 32) {
                         delete text->text;
                         text->text = new wchar_t[32];
@@ -430,7 +429,7 @@ namespace Flan {
                     swprintf_s(text->text, 32, L"%.2f", val);
                     if (range) {
                         wchar_t filter[] = L"%.xf";
-                        filter[2] = L'0' + (wchar_t)range->visual_decimal_places;
+                        filter[2] = L'0' + static_cast<wchar_t>(range->visual_decimal_places);
                         swprintf_s(text->text, 32, filter, val);
                     }
                 }
@@ -505,7 +504,7 @@ namespace Flan {
 
             // Get some information ready for the sake of my mental sanity in writing this code
             size_t n_options = radio_button->options.size();
-            float vertical_spacing = (transform->bottom_right.y - transform->top_left.y) / n_options;
+            float vertical_spacing = (transform->bottom_right.y - transform->top_left.y) / static_cast<float>(n_options);
             float margin = 2.0f;
             float circle_size_max = vertical_spacing / 2.0f - margin;
             glm::vec2 circle_base_offset = transform->top_left + glm::vec2(margin + circle_size_max);
@@ -526,17 +525,17 @@ namespace Flan {
                     if (multi_hitbox->click_states[i] == ClickState::click) {
                         color *= 0.7f;
                     }
-                };
+                }
 
                 // Draw the circle outline for each of them
-                renderer.draw_circle_line(*transform, circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(outline_circle_radius), color, 2.0f, transform->depth, transform->anchor);
+                renderer.draw_circle_line(*transform, circle_base_offset + glm::vec2(0, vertical_spacing * static_cast<float>(i)), glm::vec2(outline_circle_radius), color, 2.0f, transform->depth, transform->anchor);
 
                 // Draw the text
-                renderer.draw_text(*transform, radio_button->options[i], circle_base_offset + glm::vec2(0, vertical_spacing * i) + glm::vec2(outline_circle_radius + text_margin, 0), { 2, 2 }, color, transform->depth, AnchorPoint::top_left, AnchorPoint::left);
+                renderer.draw_text(*transform, radio_button->options[i], circle_base_offset + glm::vec2(0, vertical_spacing * static_cast<float>(i)) + glm::vec2(outline_circle_radius + text_margin, 0), { 2, 2 }, color, transform->depth, AnchorPoint::top_left, AnchorPoint::left);
 
                 // Draw selected circle
                 if (i == radio_button->current_selected_index) {
-                    renderer.draw_circle_solid(*transform, circle_base_offset + glm::vec2(0, vertical_spacing * i), glm::vec2(selected_circle_radius), color, transform->depth, transform->anchor);
+                    renderer.draw_circle_solid(*transform, circle_base_offset + glm::vec2(0, vertical_spacing * static_cast<float>(i)), glm::vec2(selected_circle_radius), color, transform->depth, transform->anchor);
                 }
             }
         }
@@ -582,8 +581,8 @@ namespace Flan {
 #endif
 
             // Render the list if necessary
-            size_t start_index = size_t(combobox->current_scroll_position / combobox->item_height);
-            size_t end_index = start_index + (size_t)(combobox->list_height / combobox->item_height) + 1;
+            size_t start_index = 0 + static_cast<size_t>(combobox->current_scroll_position / combobox->item_height);
+            size_t end_index = start_index + static_cast<size_t>(combobox->list_height / combobox->item_height) + 1;
             if (abs(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
                 for (size_t i = start_index; i <= end_index; ++i)
                 {
@@ -592,7 +591,7 @@ namespace Flan {
                         break;
 
                     // Get transform information
-                    box_top_left = transform->top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * i) - combobox->current_scroll_position);
+                    box_top_left = transform->top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * static_cast<float>(i)) - combobox->current_scroll_position);
                     box_bottom_right = { transform->bottom_right.x, box_top_left.y + combobox->item_height };
                     text_offset = { 8, combobox->item_height / 2.0f };
 
@@ -600,7 +599,7 @@ namespace Flan {
                     glm::vec4 color = { 1, 1, 1, 1 };
 
                     // If this is the currently selected entry, darken it a bit
-                    if (i == combobox->current_selected_index) {
+                    if (static_cast<int>(i) == combobox->current_selected_index) {
                         color *= 0.8f;
                     }
 
@@ -618,7 +617,7 @@ namespace Flan {
                             // This is a bit cursed, but it'll have to do
                             // We will actually update the combobox selected index in the rendering code, since we already do a ton of logic here to figure out where the mouse is anyway
                             color *= 0.7f;
-                            combobox->current_selected_index = (int)i;
+                            combobox->current_selected_index = static_cast<int>(i);
                             combobox->is_list_open = false;
                             value->set<double>(static_cast<double>(i));
                             break;
@@ -659,12 +658,12 @@ namespace Flan {
         }
     }
     
-    inline void system_comp_mouse_interact(Scene& scene, Renderer& renderer, Input& input) {
+    inline void system_comp_mouse_interact(Scene& scene, const Renderer& renderer, Input& input) {
         // Loop over all MouseInteract components, and handle the state. In this loop we also handle click events since that's literally 2 extra lines of code
         for (const auto entity : scene.view<Transform, MouseInteract>()) {
             const auto* transform = scene.get_component<Transform>(entity);
-            auto* clickable = scene.get_component<Clickable>(entity);
-            auto* function = scene.get_component<Function>(entity);
+            const auto* clickable = scene.get_component<Clickable>(entity);
+            const auto* function = scene.get_component<Function>(entity);
             auto* mouse_interact = scene.get_component<MouseInteract>(entity);
 
             // Get mouse position, and get an actual correct top-left and bottom-right
@@ -711,7 +710,7 @@ namespace Flan {
             }
             // If we're hovering over the element and we middle click, AND the component has a value, set that value to default
             auto* value = scene.get_component<Value>(entity);
-            auto* range = scene.get_component<NumberRange>(entity);
+            const auto* range = scene.get_component<NumberRange>(entity);
             if (input.mouse_down(2) && value && range && mouse_interact->state == ClickState::hover) {
                 if (value->type == VarType::float64) {
                     value->set<double>(range->default_value);
@@ -754,16 +753,16 @@ namespace Flan {
     inline void system_comp_draggable_clickable(Scene& scene, Input& input) {
         // Handle draggable components like sliders, numberboxes,
         for (const auto entity : scene.view<Value, Draggable, MouseInteract, NumberRange>()) {
-            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            const auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* value = scene.get_component<Value>(entity);
-            auto* number_range = scene.get_component<NumberRange>(entity);
-            auto* draggable = scene.get_component<Draggable>(entity);
+            const auto* number_range = scene.get_component<NumberRange>(entity);
+            const auto* draggable = scene.get_component<Draggable>(entity);
 
             // If the component is being dragged
             if (mouse_interact->state == ClickState::click) {
                 // Get a reference to the value
                 double& val = value->get_as_ref<double>();
-                double old_val = val;
+                const double old_val = val;
 
                 // Map the mouse movement to the value
                 if (draggable && draggable->is_horizontal) {
@@ -787,15 +786,15 @@ namespace Flan {
 
         // Handle scrollable components like sliders, numberboxes
         for (const auto entity : scene.view<Value, Scrollable, MouseInteract, NumberRange>()) {
-            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            const auto* mouse_interact = scene.get_component<MouseInteract>(entity);
             auto* value = scene.get_component<Value>(entity);
-            auto* number_range = scene.get_component<NumberRange>(entity);
+            const auto* number_range = scene.get_component<NumberRange>(entity);
 
             // If the component is hovered over
             if (mouse_interact->state == ClickState::hover) {
                 // Get a reference to the value
                 double& val = value->get_as_ref<double>();
-                double old_val = val;
+                const double old_val = val;
 
                 // Map the vertical mouse scroll to the value
                 val += static_cast<double>(input.mouse_wheel()) * number_range->step;
@@ -810,14 +809,14 @@ namespace Flan {
         }
     }
 
-    inline void system_comp_radio_buttons(Scene& scene, Renderer& renderer, Input& input) {
+    inline void system_comp_radio_buttons(Scene& scene, const Renderer& renderer, const Input& input) {
         // Handle radio buttons
         for (const auto entity : scene.view<Transform, Value, RadioButton, MultiHitbox>()) {
-            auto* transform = scene.get_component<Transform>(entity);
+            const auto* transform = scene.get_component<Transform>(entity);
             auto* value = scene.get_component<Value>(entity);
             auto* radio_button = scene.get_component<RadioButton>(entity);
-            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
-            auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+            const auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            const auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
 
             // Make sure it also has a mouse interact component
             if (mouse_interact == nullptr) {
@@ -845,13 +844,13 @@ namespace Flan {
         }
     }
 
-    inline void system_comp_combobox(Scene& scene, Input& input, float delta_time, bool& combobox_handled) {
+    inline void system_comp_combobox(Scene& scene, const Input& input, const float delta_time, bool& combobox_handled) {
         // Handle combobox
         for (const auto entity : scene.view<Transform, Value, Combobox, MultiHitbox>()) {
             auto* transform = scene.get_component<Transform>(entity);
             auto* combobox = scene.get_component<Combobox>(entity);
-            auto* mouse_interact = scene.get_component<MouseInteract>(entity);
-            auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
+            const auto* mouse_interact = scene.get_component<MouseInteract>(entity);
+            const auto* multi_hitbox = scene.get_component<MultiHitbox>(entity);
             auto* value = scene.get_component<Value>(entity);
 
             // Make sure it also has a mouse interact component
@@ -885,26 +884,26 @@ namespace Flan {
                 if (multi_hitbox->click_states[1] == ClickState::hover) {
                     combobox->target_scroll_position -= input.mouse_wheel() * combobox->item_height * 1.25f;
                     float min = 0.0f;
-                    float max = combobox->item_height * combobox->list_items.size() - combobox->list_height;
+                    float max = combobox->item_height * static_cast<float>(combobox->list_items.size()) - combobox->list_height;
                     max = std::max(min, max);
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, min, max);
                 }
 
                 // Otherwise if we are hovered over the button, change the index
                 if (multi_hitbox->click_states[0] == ClickState::hover) {
-                    combobox->current_selected_index -= (int)input.mouse_wheel();
-                    combobox->target_scroll_position = (combobox->current_selected_index - 0.5f) * combobox->item_height ;
+                    combobox->current_selected_index -= static_cast<int>(input.mouse_wheel());
+                    combobox->target_scroll_position = (static_cast<float>(combobox->current_selected_index) - 0.5f) * combobox->item_height ;
                     float min = 0.0f;
-                    float max = combobox->item_height * combobox->list_items.size() - combobox->list_height;
+                    float max = combobox->item_height * static_cast<float>(combobox->list_items.size()) - combobox->list_height;
                     max = std::max(min, max);
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, min, max);
-                    combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, int(combobox->list_items.size()) - 1);
+                    combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, static_cast<int>(combobox->list_items.size()) - 1);
                     value->set<double>(combobox->current_selected_index);
                 }
             }
 
             // Handle transform
-            float target_bottom = transform->top_left.y + combobox->button_height + (combobox->is_list_open * combobox->list_height);
+            const float target_bottom = transform->top_left.y + combobox->button_height + ((combobox->is_list_open ? 1.0f : 0.0f) * combobox->list_height);
             transform->bottom_right.y = std::lerp(transform->bottom_right.y, target_bottom, 1.0f - pow(2.0f, -delta_time * 75.0f));
 
             // Interpolate towards the scroll
@@ -938,7 +937,7 @@ namespace Flan {
         // Handle value changes
         for (const auto entity : scene.view<Value, Function>()) {
             auto* value = scene.get_component<Value>(entity);
-            auto* function = scene.get_component<Function>(entity);
+            const auto* function = scene.get_component<Function>(entity);
             if (value->has_changed) {
                 value->has_changed = false;
                 function->on_click();

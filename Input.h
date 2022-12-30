@@ -1,7 +1,6 @@
 #pragma once
 #include "glfw/glfw3.h"
 #include "glm/vec2.hpp"
-#include <mutex>
 
 namespace Flan {
     enum class MouseRelative {
@@ -23,13 +22,13 @@ namespace Flan {
         [[nodiscard]] float mouse_wheel() const;
 
     private:
-        glm::vec2 _window_pos = {};
-        glm::vec2 _mouse_pos_curr = {};
-        glm::vec2 _mouse_pos_prev = {};
-        float _mouse_wheel = 0.0f;
-        float _mouse_wheel_buffer = 0.0f;
-        int _mouse_button_curr[3] = {};
-        int _mouse_button_prev[3] = {};
-        bool _mouse_visible = true;
+        glm::vec2 m_window_pos = {};
+        glm::vec2 m_mouse_pos_curr = {};
+        glm::vec2 m_mouse_pos_prev = {};
+        float m_mouse_wheel = 0.0f;
+        float m_mouse_wheel_buffer = 0.0f;
+        int m_mouse_button_curr[3] = {};
+        int m_mouse_button_prev[3] = {};
+        bool m_mouse_visible = true;
     };
 }

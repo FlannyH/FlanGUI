@@ -1,5 +1,4 @@
 #include <chrono>
-#include <iostream>
 
 #include "ComponentsGUI.h"
 #include "ComponentSystem.h"
@@ -35,13 +34,12 @@ int main()
     Flan::create_slider(scene, "debug_numberbox", { { 500, 300 }, { 600, 700 } }, { 0.0, 100.0, 1.0, 50, 0 });
     Flan::create_slider(scene, "debug_numberbox", { { 600, 300 }, { 1000, 360 } }, { 0.0, 100.0, 1.0, 50, 0 }, false);
     Flan::create_radio_button(scene, "debug_radio_button", { { 700, 400 }, { 1100, 640 } }, std::vector<std::wstring>({
-        L"hello", 
+        L"hello",
         L"there",
         L"i am",
         L"a test",
         L"ui element :)",
         }), 0);
-    800, 24;
     Flan::create_combobox(scene, "debug_combobox", { {800, 20}, {1200, 80}, 0.01f }, std::vector<std::wstring>({
         L"Option 1",
         L"Option 2",

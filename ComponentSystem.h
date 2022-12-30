@@ -15,7 +15,7 @@ namespace Flan {
             free(pool);
         }
 
-        void init(size_t comp_size_) {
+        void init(const size_t comp_size_) {
             comp_size = comp_size_;
             free(pool);
             pool = static_cast<uint8_t*>(malloc(MAX_ENTITIES * comp_size));
@@ -50,15 +50,15 @@ namespace Flan {
             return *this;
         }
 
-        EntityID& operator*() {
+        EntityID& operator*() const {
             return entities[index];
         }
 
-        bool operator==(const SceneViewIterator& other) {
+        bool operator==(const SceneViewIterator& other) const {
             return entities == other.entities && index == other.index;
         }
 
-        bool operator!=(const SceneViewIterator& other) {
+        bool operator!=(const SceneViewIterator& other) const {
             return !(*this == other);
         }
 
@@ -71,10 +71,10 @@ namespace Flan {
         EntityID* entities;
         size_t n_entities;
         SceneViewIterator begin() {
-            return SceneViewIterator(entities, 0);
+            return { entities, 0 };
         }
         SceneViewIterator end() {
-            return SceneViewIterator(entities, n_entities);
+            return { entities, n_entities };
         }
     };
 
@@ -137,8 +137,8 @@ namespace Flan {
     }
 
     template <typename T>
-    void Scene::add_component(EntityID entity) {
-        uint64_t comp_id = get_comp_id<T>();
+    void Scene::add_component(const EntityID entity) {
+        const uint64_t comp_id = get_comp_id<T>();
         // Set the component flag for this component
         _entities[entity] |= 1ull << comp_id;
 

@@ -11,7 +11,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "ComponentsGUI.h"
 #include "stb/stb_image.h"
-#include "resource.h"
 
 
 static void debug_callback_func(
@@ -152,32 +151,32 @@ namespace Flan {
         return true;
     }
 
-    bool read_resource(std::string name, int& size, char*& data, const std::wstring& type, HMODULE dll) {
+    bool read_resource(const std::string& name, int& size, char*& data, const std::wstring& type, HMODULE dll) {
         // Convert to wstring
         std::wstring wname;
         wname.resize(name.size() + 1);
         size_t converted_chars = 0;
-        mbstowcs_s(&converted_chars, &wname[0], wname.size(), name.c_str(), name.size());
+        mbstowcs_s(&converted_chars, wname.data(), wname.size(), name.c_str(), name.size());
 
         // Find the resource
-        HRSRC resource_handle = FindResource(dll, wname.c_str(), type.c_str());
+        const HRSRC resource_handle = FindResource(dll, wname.c_str(), type.c_str());
         if (!resource_handle) return false;
 
         // Load it into memory
-        HGLOBAL resource_data_handle = LoadResource(dll, resource_handle);
+        const HGLOBAL resource_data_handle = LoadResource(dll, resource_handle);
         if (!resource_data_handle) return false;
 
         // Get the pointer to the data
-        LPVOID resource_data = LockResource(resource_data_handle);
+        const LPVOID resource_data = LockResource(resource_data_handle);
         if (!resource_data) return false;
 
         // Get the size of the data
-        DWORD resource_data_size = SizeofResource(dll, resource_handle);
+        const DWORD resource_data_size = SizeofResource(dll, resource_handle);
         if (!resource_data_size) return false;
 
         // Return the data into the parameters
-        size = resource_data_size;
-        data = (char*)resource_data;
+        size = static_cast<int>(resource_data_size);
+        data = static_cast<char*>(resource_data);
 
         return true;
     }
@@ -239,7 +238,7 @@ namespace Flan {
         // Debug
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 
-        GLFWwindow* window = glfwCreateWindow(_res.x, _res.y, "FlanGUI", nullptr, nullptr);
+        GLFWwindow* window = glfwCreateWindow(m_res.x, m_res.y, "FlanGUI", nullptr, nullptr);
         glfwMakeContextCurrent(window);
         if (gl3wInit() != GL3W_OK) {
             printf("OpenGL error.\n");
@@ -248,33 +247,33 @@ namespace Flan {
         glDebugMessageCallback(debug_callback_func, nullptr);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         init(window);
-        glfwMakeContextCurrent(NULL);
+        glfwMakeContextCurrent(nullptr);
     }
 
-    void Renderer::init(int w, int h, bool invisible, HMODULE dll_handle)
+    void Renderer::init(const int w, const int h, const bool invisible, HMODULE dll_handle)
     {
-        _res.x = w;
-        _res.y = h;
-        dll = dll_handle;
+        m_res.x = w;
+        m_res.y = h;
+        m_dll = dll_handle;
         init(invisible);
     }
 
     void Renderer::init(GLFWwindow* window) {
         // Init basic rendering
-        _window = window;
+        m_window = window;
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glfwSwapInterval(1);
         //_shader = shader_from_file("Shaders\\sprite");
-        _shader = shader_from_resource("sprite");
+        m_shader = shader_from_resource("sprite");
         load_font("font.png");
         //shader = shader_from_string(vert_shader, frag_shader);
-        glUseProgram(_shader);
+        glUseProgram(m_shader);
 
         // Create vertex buffer
-        glGenVertexArrays(1, &_vao);
-        glGenBuffers(1, &_vbo);
-        glBindVertexArray(_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+        glGenVertexArrays(1, &m_vao);
+        glGenBuffers(1, &m_vbo);
+        glBindVertexArray(m_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 
         // Setup vertex array
         glVertexAttribPointer(0, sizeof(Vertex::pos      ) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, pos      .x)));
@@ -291,7 +290,7 @@ namespace Flan {
 
     void Renderer::begin_frame() {
         // Setup render context
-        glfwMakeContextCurrent(_window);
+        glfwMakeContextCurrent(m_window);
         glfwPollEvents();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glFrontFace(GL_CCW);
@@ -299,12 +298,12 @@ namespace Flan {
         glDisable(GL_CULL_FACE);
 
         // Handle window size changes
-        glfwGetWindowSize(_window, &_res.x, &_res.y);
-        glViewport(0, 0, _res.x, _res.y);
+        glfwGetWindowSize(m_window, &m_res.x, &m_res.y);
+        glViewport(0, 0, m_res.x, m_res.y);
 
         // Clear queues
-        _flat_queue.clear();
-        _textured_queue.clear();
+        m_flat_queue.clear();
+        m_textured_queue.clear();
 
         // Clear screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -319,23 +318,23 @@ namespace Flan {
 
     void Renderer::end_frame() const {
         // Set resolution uniform
-        auto location = glGetUniformLocation(_shader, "resolution");
-        glUniform2iv(location, 1, &_res.x);
+        const auto location = glGetUniformLocation(m_shader, "resolution");
+        glUniform2iv(location, 1, &m_res.x);
 
         // Render flat triangle queue
-        glUseProgram(_shader);
-        glBindTexture(GL_TEXTURE_2D, _font.texture_id);
-        glBindVertexArray(_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * _flat_queue.size()), _flat_queue.data(), GL_STATIC_DRAW);
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(_flat_queue.size() * 3));
+        glUseProgram(m_shader);
+        glBindTexture(GL_TEXTURE_2D, m_font.texture_id);
+        glBindVertexArray(m_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * m_flat_queue.size()), m_flat_queue.data(), GL_STATIC_DRAW);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_flat_queue.size() * 3));
 
         // Render textured triangle queue
-        for (auto& entry : _textured_queue) {
-            glUseProgram(_shader);
+        for (auto& entry : m_textured_queue) {
+            glUseProgram(m_shader);
             glBindTexture(GL_TEXTURE_2D, entry.first);
-            glBindVertexArray(_vao);
-            glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+            glBindVertexArray(m_vao);
+            glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
             glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(sizeof(Triangle) * entry.second.size()), entry.second.data(), GL_STATIC_DRAW);
             glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(entry.second.size()) * 3);
         }
@@ -343,7 +342,7 @@ namespace Flan {
     }
 
     void Renderer::flip_buffers() const {
-        glfwSwapBuffers(_window);
+        glfwSwapBuffers(m_window);
     }
 
     void Renderer::draw_line(Transform transform, glm::vec2 a, glm::vec2 b, glm::vec4 color, float width, float depth, AnchorPoint anchor) {
@@ -371,8 +370,8 @@ namespace Flan {
         v2.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
         v3.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
         v4.clip_rect = { transform.top_left.x, transform.top_left.y, transform.bottom_right.x, transform.bottom_right.y };
-        _flat_queue.push_back({v1, v3, v2});
-        _flat_queue.push_back({v1, v4, v3});
+        m_flat_queue.push_back({v1, v3, v2});
+        m_flat_queue.push_back({v1, v4, v3});
     }
 
     void Renderer::draw_box_line(Transform transform, const glm::vec2 top_left, const glm::vec2 bottom_right, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
@@ -398,7 +397,7 @@ namespace Flan {
         for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
             const size_t sx = i;
             const size_t cx = (sx + (SINE_LUT_RESOLUTION / 4)) % SINE_LUT_RESOLUTION;
-            points[i] = center + (scale * glm::vec2{ _sine_lut[cx], _sine_lut[sx]});
+            points[i] = center + (scale * glm::vec2{ m_sine_lut[cx], m_sine_lut[sx]});
         }
 
         // Draw lines
@@ -414,7 +413,7 @@ namespace Flan {
         for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
             const size_t sx = i;
             const size_t cx = (sx + (SINE_LUT_RESOLUTION / 4)) % SINE_LUT_RESOLUTION;
-            points[i] = center + (scale * glm::vec2{ _sine_lut[cx], _sine_lut[sx] });
+            points[i] = center + (scale * glm::vec2{ m_sine_lut[cx], m_sine_lut[sx] });
         }
 
         // Generate polygon
@@ -465,8 +464,8 @@ namespace Flan {
         }
         else if (tex_type == TextureType::tile) {
             const glm::vec2 tc_multiplier = {
-                (tr.x - tl.x) / _textures[texture].res.x,
-                (bl.y - tl.y) / _textures[texture].res.y,
+                (tr.x - tl.x) / static_cast<float>(m_textures[texture].res.x),
+                (bl.y - tl.y) / static_cast<float>(m_textures[texture].res.y),
             };
             Vertex verts[4]{
                 { {tl, depth}, glm::vec2{0, 0} *tc_multiplier, color * glm::vec4(1, 1, 1, 0) },
@@ -480,7 +479,7 @@ namespace Flan {
             // Split into 9 segments
             constexpr float one_third = 1.0f / 3.0f;
             constexpr float two_third = 2.0f / 3.0f;
-            const auto tres = glm::vec2(_textures[texture].res);
+            const auto tres = glm::vec2(m_textures[texture].res);
             // Top left
             Vertex verts[4];
             verts[0] = { {tl, depth}, {0, 0}, color * glm::vec4(1, 1, 1, 0)};
@@ -557,15 +556,15 @@ namespace Flan {
 
         // Add to render queue
         for (size_t i = 0; i < n_verts - 2; i++) {
-            _flat_queue.push_back({ verts[0], verts[i + 2], verts[i + 1] });
+            m_flat_queue.push_back({ verts[0], verts[i + 2], verts[i + 1] });
         }
     }
 
     void Renderer::get_texture(const std::string& texture) {
-        if (_textures.find(texture) == _textures.end()) {
-            Texture tex;
+        if (!m_textures.contains(texture)) {
+            Texture tex{};
             if (load_texture(texture, tex))
-                _textures[texture] = tex;
+                m_textures[texture] = tex;
             else
                 printf("ERROR: Unable to find texture at path '%s'\n", texture.c_str());
         }
@@ -583,7 +582,7 @@ namespace Flan {
 
         // Add to render queue
         for (size_t i = 0; i < n_verts - 2; i++) {
-            _textured_queue[_textures[texture].id].push_back({verts[0], verts[i + 2], verts[i + 1]});
+            m_textured_queue[m_textures[texture].id].push_back({verts[0], verts[i + 2], verts[i + 1]});
         }
     }
 
@@ -591,13 +590,13 @@ namespace Flan {
         // Init text LUT
         {
             // Only init if it's not yet initializdd
-            if (!_wchar_lut.empty())
+            if (!m_wchar_lut.empty())
                 return;
 
             // These are all just regular old ASCII, do those in bulk
             const std::wstring lut = L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¡¿";
             for (size_t x = 0; x < lut.size(); x++) {
-                _wchar_lut[lut[x]] = { static_cast<int>(x) };
+                m_wchar_lut[lut[x]] = { static_cast<int>(x) };
             }
 
             // All the accented characters
@@ -611,16 +610,16 @@ namespace Flan {
                 constexpr int accent_offset = 0x70 - '0';
 
                 for (size_t x = 0; x < ascii_list.size(); x++) {
-                    _wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
+                    m_wchar_lut[accented_list[x]] = { static_cast<int>(lut.find_first_of(ascii_list[x])), accent_markers[x] + accent_offset };
                 }
             }
         }
 
         // Init sine LUT
-        const float inv_sine_lut_size = 6.283185307179f / static_cast<float>(_sine_lut.size());
-        for (size_t i = 0; i < _sine_lut.size(); i++) {
+        const float inv_sine_lut_size = 6.283185307179f / static_cast<float>(m_sine_lut.size());
+        for (size_t i = 0; i < m_sine_lut.size(); i++) {
             const float x = static_cast<float>(i) * inv_sine_lut_size;
-            _sine_lut[i] = sinf(x);
+            m_sine_lut[i] = sinf(x);
         }
     }
 
@@ -629,7 +628,7 @@ namespace Flan {
         glm::vec2 cur_pos = pos;
 
         // Calculate width
-        float height = static_cast<float>(_font.grid_h) * scale.y;
+        float height = static_cast<float>(m_font.grid_h) * scale.y;
         std::vector<float> widths;
         {
             float width = 0;
@@ -640,9 +639,9 @@ namespace Flan {
                     continue;
                 }
 
-                std::vector<int>& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+                std::vector<int>& wentry = m_wchar_lut[static_cast<wchar_t>(c)];
                 if (!wentry.empty())
-                    width += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
+                    width += static_cast<float>(m_font.widths[wentry[0]]) * scale.x;
             }
             widths.push_back(width); // the final width doesn't get added in the for loop, do that manually
         }
@@ -676,7 +675,7 @@ namespace Flan {
             // Handle newline
             if (c == '\n') {
                 cur_pos.x = pos.x;
-                cur_pos.y += static_cast<float>(_font.grid_h) * scale.y;
+                cur_pos.y += static_cast<float>(m_font.grid_h) * scale.y;
                 width_idx++;
                 continue;
             }
@@ -685,12 +684,12 @@ namespace Flan {
                 continue;
             }
             if (c == '\t') {
-                cur_pos.x += _font.grid_h * 4;
+                cur_pos.x += static_cast<float>(m_font.grid_h * 4);
                 continue;
             }
 
             // Create verts
-            std::vector<int>& wentry = _wchar_lut[static_cast<wchar_t>(c)];
+            std::vector<int>& wentry = m_wchar_lut[static_cast<wchar_t>(c)];
 
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc = wentry[i];
@@ -698,8 +697,8 @@ namespace Flan {
                 glm::vec3 pos_depth = (glm::vec3(cur_pos, depth) + glm::vec3(0, i * 2, 0)) + offsets[width_idx];
                 glm::vec2 off_uv = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);
                 glm::vec2 glyph_size = glm::vec2(1.f / 16.f, 1.f / 8.f);
-                float grid_w_2 = static_cast<float>(_font.grid_w) * scale.x;
-                float grid_h_2 = static_cast<float>(_font.grid_h) * scale.y;
+                float grid_w_2 = static_cast<float>(m_font.grid_w) * scale.x;
+                float grid_h_2 = static_cast<float>(m_font.grid_h) * scale.y;
                 Vertex v1 = { // top left
                     pixels_to_normalized(pos_depth + glm::vec3(grid_w_2, 0, 0.0f), ui_anchor),
                     glm::vec2(1, 0)* glyph_size + off_uv,
@@ -726,12 +725,12 @@ namespace Flan {
                 };
 
                 // Create triangles and add to queue
-                _flat_queue.push_back({ v1, v3, v2 });
-                _flat_queue.push_back({ v1, v4, v3 });
+                m_flat_queue.push_back({ v1, v3, v2 });
+                m_flat_queue.push_back({ v1, v4, v3 });
             }
 
             // Move cursor
-            cur_pos.x += static_cast<float>(_font.widths[wentry[0]]) * scale.x;
+            cur_pos.x += static_cast<float>(m_font.widths[wentry[0]]) * scale.x;
         }
     }
 
@@ -741,30 +740,31 @@ namespace Flan {
         if (enabled == false) {
             top_left = { -999999.f, -999999.f };
             bottom_right = { +999999.f, +999999.f };
+            m_clipping_rectangle = { top_left, bottom_right };
             return;
         }
 
         // Otherwise yeah let's update the variable
-        _clipping_rectangle = { top_left, bottom_right };
+        m_clipping_rectangle = { top_left, bottom_right };
     }
 
-    glm::vec2 Renderer::apply_anchor(const glm::vec2 pos, AnchorPoint anchor) {
-        return pos + (glm::vec2(0.5f, -0.5f) * glm::vec2(_res) * (anchor_offsets[static_cast<size_t>(anchor)] + glm::vec2(1.0f, 1.0f)));
+    glm::vec2 Renderer::apply_anchor(const glm::vec2 pos, AnchorPoint anchor) const {
+        return pos + (glm::vec2(0.5f, -0.5f) * glm::vec2(m_res) * (anchor_offsets[static_cast<size_t>(anchor)] + glm::vec2(1.0f, 1.0f)));
     }
 
     glm::vec2 Renderer::pixels_to_normalized(const glm::vec2 pos, AnchorPoint anchor) const {
         // Handle anchor and scale to window
-        return glm::vec2( 2, -2 ) * (pos / glm::vec2(_res)) + anchor_offsets[static_cast<size_t>(anchor)];
+        return glm::vec2( 2, -2 ) * (pos / glm::vec2(m_res)) + anchor_offsets[static_cast<size_t>(anchor)];
     }
 
     glm::vec3 Renderer::pixels_to_normalized(const glm::vec3 pos, AnchorPoint anchor) const {
         // Handle anchor and scale to window
-        return glm::vec3(2, -2, 1) * (pos / glm::vec3(_res, 1)) + glm::vec3(anchor_offsets[static_cast<size_t>(anchor)], 0.f);
+        return glm::vec3(2, -2, 1) * (pos / glm::vec3(m_res, 1)) + glm::vec3(anchor_offsets[static_cast<size_t>(anchor)], 0.f);
     }
 
     glm::vec2 Renderer::apply_anchor_in_pixel_space(glm::vec2 pos, AnchorPoint anchor) const
     {
-        glm::vec2 pixel_anchor_offsets[] = {
+        const glm::vec2 pixel_anchor_offsets[] = {
             {0.5f, 0.5f},
             {0.0f, 0.0f},
             {0.5f, 0.0f},
@@ -775,10 +775,10 @@ namespace Flan {
             {0.0f, 1.0f},
             {0.0f, 0.5f},
         };
-        return pos + (pixel_anchor_offsets[static_cast<size_t>(anchor)] * glm::vec2(_res));
+        return pos + (pixel_anchor_offsets[static_cast<size_t>(anchor)] * glm::vec2(m_res));
     }
 
-    bool Renderer::load_texture(const std::string& path, Texture& handle) {
+    bool Renderer::load_texture(const std::string& path, Texture& handle) const {
         // Load image
         int w, h, c;
         uint8_t* data = stbi_load(path.c_str(), &w, &h, &c, 4);
@@ -787,8 +787,8 @@ namespace Flan {
         if (!data) {
             int size;
             char* data_resource;
-            read_resource(path, size, data_resource, L"PNG", dll);
-            data = stbi_load_from_memory((stbi_uc*)data_resource, size, &w, &h, &c, 4);
+            read_resource(path, size, data_resource, L"PNG", m_dll);
+            data = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(data_resource), size, &w, &h, &c, 4);
         }
 
         // Did it load correctly?
@@ -825,8 +825,8 @@ namespace Flan {
         if (!data) {
             int size;
             char* data_resource;
-            read_resource(path, size, data_resource, L"PNG", dll);
-            data = stbi_load_from_memory((stbi_uc*)data_resource, size, &w, &h, &c, 4);
+            read_resource(path, size, data_resource, L"PNG", m_dll);
+            data = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(data_resource), size, &w, &h, &c, 4);
         }
         
         // If we still don't have an image, throw an error
@@ -892,7 +892,7 @@ namespace Flan {
         // Create font object
         std::vector<int> widths_vector(128);
         memcpy_s(widths_vector.data(), widths_vector.size() * 4, widths, 128ull * 4ull);
-        _font = Font {
+        m_font = Font {
             texture_gpu,
             static_cast<uint16_t>(glyph_size.x),
             static_cast<uint16_t>(glyph_size.y),
@@ -905,9 +905,9 @@ namespace Flan {
     GLuint Renderer::shader_from_file(const std::string& path) {
         const GLuint shader_gpu = glCreateProgram();
 
-        bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
-        bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
-        bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
+        const bool vert_loaded = shader_part_from_file(path + ".vert", ShaderType::vertex, shader_gpu);
+        const bool frag_loaded = shader_part_from_file(path + ".frag", ShaderType::pixel, shader_gpu);
+        const bool comp_loaded = shader_part_from_file(path + ".comp", ShaderType::compute, shader_gpu);
         shader_part_from_file(path + ".geom", ShaderType::geometry, shader_gpu);
 
         if (
@@ -928,14 +928,13 @@ namespace Flan {
         return shader_gpu;
     }
 
-    GLuint Renderer::shader_from_resource(const std::string& path)
-    {
+    GLuint Renderer::shader_from_resource(const std::string& path) const {
         const GLuint shader_gpu = glCreateProgram();
 
-        bool vert_loaded = shader_part_from_resource(path + ".vert", ShaderType::vertex, shader_gpu);
-        bool frag_loaded = shader_part_from_resource(path + ".frag", ShaderType::pixel, shader_gpu);
-        bool comp_loaded = shader_part_from_resource(path + ".comp", ShaderType::compute, shader_gpu);
-        shader_part_from_resource(path + ".geom", ShaderType::geometry, shader_gpu);
+        const bool vert_loaded = shader_part_from_resource(path + ".vert", ShaderType::vertex, shader_gpu);
+        const bool frag_loaded = shader_part_from_resource(path + ".frag", ShaderType::pixel, shader_gpu);
+        const bool comp_loaded = shader_part_from_resource(path + ".comp", ShaderType::compute, shader_gpu);
+        [[maybe_unused]] bool geom_loaded = shader_part_from_resource(path + ".geom", ShaderType::geometry, shader_gpu);
 
         if (
             (vert_loaded && frag_loaded) == false &&
@@ -1001,8 +1000,7 @@ namespace Flan {
         return true;
     }
 
-    bool Renderer::shader_part_from_resource(const std::string& name, ShaderType type, const GLuint& program)
-    {
+    bool Renderer::shader_part_from_resource(const std::string& name, ShaderType type, const GLuint& program) const {
         constexpr int shader_types[]
         {
             GL_VERTEX_SHADER,
@@ -1014,7 +1012,7 @@ namespace Flan {
         // Read shader source file
         int shader_size = 0;
         char* shader_data = nullptr;
-        read_resource(name, shader_size, shader_data, L"ShaderSource", dll);
+        read_resource(name, shader_size, shader_data, L"ShaderSource", m_dll);
 
         if (shader_data == nullptr) {
             return false;
