@@ -730,7 +730,7 @@ namespace Flan {
             }
 
             // Move cursor
-            cur_pos.x += static_cast<float>(m_font.widths[wentry[0]]) * scale.x;
+            if (!wentry.empty()) cur_pos.x += static_cast<float>(m_font.widths[wentry[0]]) * scale.x;
         }
     }
 
