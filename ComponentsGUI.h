@@ -279,7 +279,10 @@ namespace Flan {
         scene.add_component<Scrollable>(entity);
         scene.add_component<MouseInteract>(entity);
         scene.add_component<Slider>(entity);
-        if (has_text) scene.add_component<Text>(entity, text);
+        if (has_text) {
+            scene.add_component<Text>(entity, text);
+        }
+
         scene.get_component<Value>(entity)->set<double>(range.default_value);
         return entity;
     }
@@ -398,6 +401,7 @@ namespace Flan {
             const auto* transform = scene.get_component<Transform>(entity);
             auto* text = scene.get_component<Text>(entity);
             auto* value = scene.get_component<Value>(entity);
+            auto* slider = scene.get_component<Slider>(entity);
             const auto* range = scene.get_component<NumberRange>(entity);
             const glm::vec2 anchor_offsets[] = {
                 {0.5f, 0.5f}, // center
@@ -440,7 +444,10 @@ namespace Flan {
             glm::vec2 transform_bottom_right = transform->bottom_right - text->margins;
             const glm::vec2 top_left = transform_top_left + glm::vec2(renderer.resolution()) * anchor_offsets[static_cast<size_t>(transform->anchor)];
             const glm::vec2 offset_from_top_left = (transform_bottom_right - transform_top_left) * anchor_offsets[static_cast<size_t>(text->ui_anchor)];
-            renderer.draw_text({ {-9999, -9999}, {9999, 9999}, transform->depth, transform->anchor }, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
+            if (!slider)
+                renderer.draw_text({ transform_top_left, transform_bottom_right, transform->depth, transform->anchor }, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
+            else
+                renderer.draw_text({ {-9999, -9999}, {9999, 9999}, transform->depth, transform->anchor }, text->text, top_left + offset_from_top_left, text->scale, text->color, transform->depth, AnchorPoint::top_left, text->text_anchor);
 #ifdef _DEBUG
             renderer.draw_circle_solid(*transform, top_left, { 4,4 }, { 1,0,1,1 });
 #endif
@@ -500,7 +507,11 @@ namespace Flan {
         // Radio buttons
         for (const auto entity : scene.view<Transform, Value, RadioButton>()) {
             auto* transform = scene.get_component<Transform>(entity);
+            auto* value = scene.get_component<Value>(entity);
             auto* radio_button = scene.get_component<RadioButton>(entity);
+
+            // Update the radio button current index
+            radio_button->current_selected_index = static_cast<size_t>(value->get_as_ref<double>());
 
             // Get some information ready for the sake of my mental sanity in writing this code
             size_t n_options = radio_button->options.size();
