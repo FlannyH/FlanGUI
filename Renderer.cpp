@@ -390,7 +390,7 @@ namespace Flan {
         draw_line(transform, bl - y, tl + y, color, width, depth, anchor);
     }
 
-    void Renderer::draw_circle_line(Transform transform, const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
+    void Renderer::draw_circle_line(const Transform transform, const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float width, const float depth, AnchorPoint anchor) {
         glm::vec2 points[SINE_LUT_RESOLUTION];
 
         // Generate points
@@ -406,8 +406,8 @@ namespace Flan {
         }
     }
 
-    void Renderer::draw_circle_solid(Transform transform, const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float depth, const AnchorPoint anchor) {
-        glm::vec2 points[SINE_LUT_RESOLUTION]; // todo: see if this can be static, or even just a C-style array, since it's a temporary array anyway
+    void Renderer::draw_circle_solid(const Transform transform, const glm::vec2 center, const glm::vec2 scale, const glm::vec4 color, const float depth, const AnchorPoint anchor) {
+        glm::vec2 points[SINE_LUT_RESOLUTION];
 
         // Generate points
         for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
@@ -417,7 +417,7 @@ namespace Flan {
         }
 
         // Generate polygon
-        Vertex verts[SINE_LUT_RESOLUTION]; // todo: same here, see if this can be static or a C-style array, to avoid unnecessary memory allocations
+        Vertex verts[SINE_LUT_RESOLUTION];
         for (size_t i = 0; i < SINE_LUT_RESOLUTION; i++) {
             verts[i] = Vertex{glm::vec3(points[i], depth), {0, 0}, color};
         }

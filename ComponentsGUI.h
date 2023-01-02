@@ -315,6 +315,7 @@ namespace Flan {
         const EntityID entity = scene.new_entity();
         scene.add_component<Transform>(entity, transform);
         scene.add_component<Value>(entity, { name, VarType::float64, scene.value_pool }); //todo: make add int type
+        scene.get_component<Value>(entity)->set(static_cast<double>(initial_index));
         scene.add_component<MultiHitbox>(entity, multihitbox);
         scene.add_component<RadioButton>(entity, {options, initial_index});
         scene.add_component<MouseInteract>(entity);
