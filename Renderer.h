@@ -7,6 +7,9 @@
 
 #include "GL/glcorearb.h"
 #include "glfw/glfw3.h"
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WGL
+#define GLFW_NATIVE_INCLUDE_NONE
 #include <glfw/glfw3native.h>
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"

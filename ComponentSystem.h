@@ -42,30 +42,30 @@ namespace Flan {
 
     using EntityID = size_t;
 
-        class SceneViewIterator {
-        public:
-            SceneViewIterator(EntityID*& set_entities, size_t set_index) : entities(set_entities), index(set_index) {}
-            SceneViewIterator& operator++() {
-                ++index;
-                return *this;
-            }
+    class SceneViewIterator {
+    public:
+        SceneViewIterator(EntityID*& set_entities, size_t set_index) : entities(set_entities), index(set_index) {}
+        SceneViewIterator& operator++() {
+            ++index;
+            return *this;
+        }
 
-            EntityID& operator*() const {
-                return entities[index];
-            }
+        EntityID& operator*() const {
+            return entities[index];
+        }
 
-            bool operator==(const SceneViewIterator& other) const {
-                return entities == other.entities && index == other.index;
-            }
+        bool operator==(const SceneViewIterator& other) const {
+            return entities == other.entities && index == other.index;
+        }
 
-            bool operator!=(const SceneViewIterator& other) const {
-                return !(*this == other);
-            }
+        bool operator!=(const SceneViewIterator& other) const {
+            return !(*this == other);
+        }
 
-        private:
-            EntityID*& entities;
-            size_t index;
-        };
+    private:
+        EntityID*& entities;
+        size_t index;
+    };
 
     struct SceneView {
         EntityID* entities;

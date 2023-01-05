@@ -11,26 +11,6 @@
 #include "CommonStructs.h"
 #include "../FlanSoundfontPlayer/Source/ValueSystem.h"
 
-#ifdef _DEBUG
-static int chunks_allocated;
-static int chunks_deallocated;
-
-inline void* operator new(size_t size) {
-    void* ptr = malloc(size);
-    //printf("allocated %i bytes at %p\n", size, ptr);
-    chunks_allocated++;
-    printf("total chunks allocated: %i\t\t\r", chunks_allocated - chunks_deallocated);
-    return ptr;
-}
-
-inline void operator delete(void* ptr) noexcept {
-    free(ptr);
-    //printf("freed memory at %p\n", ptr);
-    chunks_deallocated++;
-    printf("total chunks allocated: %i\t\t\r", chunks_allocated - chunks_deallocated);
-}
-#endif
-
 namespace Flan {
     template <typename T>
     T sign(T v) {
@@ -72,6 +52,7 @@ namespace Flan {
         std::vector<Sprite> sprites;
     };
 
+    // todo: add a version that has an editable textbox (for easy searching)
     struct Text {
         Text(const std::wstring& string = std::wstring(), const glm::vec2 scl = {2, 2}, const glm::vec4 col = {1, 1, 1, 1}, const AnchorPoint ui_anchr = AnchorPoint::top_left, const AnchorPoint txt_anchr = AnchorPoint::top_left) {
             text_length = string.size() + 1;
@@ -146,6 +127,7 @@ namespace Flan {
         size_t current_selected_index = 0;
     };
 
+    // todo: add a version that has an editable textbox (for easy searching)
     struct Combobox {
         std::vector<std::wstring> list_items;
         float button_height = 60.0f;
@@ -157,6 +139,10 @@ namespace Flan {
         int current_selected_index = 0;
     };
 
+    // todo: add checkbox component
+    // todo: add scrollable list component
+    // todo: add ui component grid component
+    // todo: add transform options so you can easily create ui without hardcoding
     struct Scrollable{}; // This is a tag without data
     struct NumberBox{}; // This is a tag without data
     struct Button{}; // This is a tag without data
@@ -693,7 +679,7 @@ namespace Flan {
                 mouse_pos.y <= br.y;
 
             // If the element hasn't been clicked
-            if (mouse_interact->state != ClickState::click) {
+            if (mouse_interact->state != ClickState::click && input.mouse_held(0) == false) {
                 // If the mouse cursor is inside the UI component's bounding box, set the ClickState to hover
                 if (is_inside_bb) {
                     mouse_interact->state = ClickState::hover;
@@ -703,7 +689,7 @@ namespace Flan {
                     mouse_interact->state = ClickState::idle;
                 }
             }
-            // If we're hovering over the element and we click, set the ClickState to cliking
+            // If we're hovering over the element and we click, set the ClickState to clicking
             if (input.mouse_down(0)) {
                 if (mouse_interact->state == ClickState::hover) {
                     mouse_interact->state = ClickState::click;
