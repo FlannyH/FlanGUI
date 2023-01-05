@@ -9,7 +9,6 @@
 #include "Renderer.h"
 #include "glm/vec2.hpp"
 #include "CommonStructs.h"
-#include "../FlanSoundfontPlayer/Source/ValueSystem.h"
 
 namespace Flan {
     template <typename T>

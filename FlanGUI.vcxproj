@@ -502,6 +502,7 @@
     <ClInclude Include="Input.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="ValueSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="External\include\glm\detail\func_common.inl" />

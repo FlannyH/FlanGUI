@@ -1,7 +1,8 @@
 #pragma once
 #include <vector>
 #include <cassert>
-#include "../FlanSoundfontPlayer/Source/ValueSystem.h"
+
+#include "ValueSystem.h"
 
 #define MAX_ENTITIES 1024
 
