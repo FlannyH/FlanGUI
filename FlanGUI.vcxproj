@@ -501,6 +501,7 @@
     <ClInclude Include="ComponentsGUI.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RendererStructs.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ValueSystem.h" />
   </ItemGroup>

@@ -105,7 +105,7 @@ namespace Flan {
         // The minimum and maximum x and y coordinates of the hitbox, in pixels relative to the transform of the component.
         // Note that the y-coordinate of the top of the hitbox is 0 and it increases as it goes down.
         glm::vec2 top_left{}, bottom_right{};
-        bool intersects(glm::vec2 pos) const {
+        bool intersects(const glm::vec2 pos) const {
             return (
                 pos.x >= top_left.x &&
                 pos.x <= bottom_right.x &&
@@ -387,7 +387,7 @@ namespace Flan {
             const auto* transform = scene.get_component<Transform>(entity);
             auto* text = scene.get_component<Text>(entity);
             auto* value = scene.get_component<Value>(entity);
-            auto* slider = scene.get_component<Slider>(entity);
+            const auto* slider = scene.get_component<Slider>(entity);
             const auto* range = scene.get_component<NumberRange>(entity);
             const glm::vec2 anchor_offsets[] = {
                 {0.5f, 0.5f}, // center

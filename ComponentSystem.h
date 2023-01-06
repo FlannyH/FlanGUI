@@ -16,20 +16,11 @@ namespace Flan {
             free(pool);
         }
 
-        void init(const size_t comp_size_) {
-            comp_size = comp_size_;
-            free(pool);
-            pool = static_cast<uint8_t*>(malloc(MAX_ENTITIES * comp_size));
-        }
+        void init(size_t comp_size_);
 
-        explicit Pool(const size_t comp_size_) {
-            init(comp_size_);
-        }
+        explicit Pool(size_t comp_size_);
 
-        [[nodiscard]] void* get(const size_t index) const {
-            assert(pool != nullptr);
-            return pool + index * comp_size;
-        }
+        [[nodiscard]] void* get(size_t index) const;
     };
 
     inline int comp_ctr = 0;

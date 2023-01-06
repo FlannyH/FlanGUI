@@ -980,6 +980,9 @@
     <ClInclude Include="ValueSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RendererStructs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="External\include\glm\detail\func_common.inl">
