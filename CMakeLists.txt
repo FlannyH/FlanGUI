@@ -99,6 +99,4 @@ target_link_libraries(flangui
   glfw
   glbinding::glbinding
   glm::glm
-  portaudio
-  rtmidi
 )
