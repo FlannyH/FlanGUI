@@ -1,11 +1,10 @@
+#include "resource.hpp"
 #define GLFW_INCLUDE_NONE
 #include <glbinding/glbinding.h>
 #include <glbinding/gl/gl.h>
 #include <GLFW/glfw3.h>
 #include <cassert>
-#include <iostream>
 #include <fstream>
-#include <string>
 #include <memory>
 #include "../../common.hpp"
 #include "../../input.hpp"
@@ -370,8 +369,8 @@ namespace Gfx {
         for (const uint32_t constant: constants) gl::glUniform1ui(i++, constant);
     }
 
-    const Resource* const DeviceOpenGL::get_resource(const ResourceID id) {
-        return (const Resource* const)(&resources.at(id.id));
+    Resource* DeviceOpenGL::get_resource(const ResourceID id) {
+        return (Resource*)(&resources.at(id.id));
     }
 
     void DeviceOpenGL::delete_resource(const ResourceID resource_to_destroy) {
@@ -419,7 +418,7 @@ namespace Gfx {
         resources.at(resource_id_pair.id.id) = (Resource*)resource;
 
         // todo(lily): support user specified buffer flags
-        const auto flags = gl::BufferStorageMask::GL_DYNAMIC_STORAGE_BIT;
+        // const auto flags = gl::BufferStorageMask::GL_DYNAMIC_STORAGE_BIT;
 
         // Allocate buffer on GPU
         gl::glBindBuffer(gl::GLenum::GL_SHADER_STORAGE_BUFFER, gl_id);
@@ -496,6 +495,9 @@ namespace Gfx {
         case TextureType::Single3D: // Same as Array2D, so fall through
         case TextureType::Array2D:
             gl::glTexImage3D(gl_type, 0, gl_format, resolution.x, resolution.y, resolution.z, 0, gl_format, gl_data_type, data);
+            break;
+        case TextureType::Invalid:
+            LOG(Fatal, "Creating invalid texture");
             break;
         }
 
@@ -575,6 +577,9 @@ namespace Gfx {
                     gl_type, 0, gl_format, new_resolution.x, new_resolution.y, new_resolution.z, 0, gl_format, gl_data_type,
                     nullptr);
                 break;
+            case TextureType::Invalid:
+                LOG(Fatal, "Creating invalid texture");
+                break;
             }
             gl::glBindTexture(gl_type, 0);
 
@@ -592,6 +597,9 @@ namespace Gfx {
                     gl::glTexImage3D(
                         gl::GL_TEXTURE_2D, 0, gl::GL_DEPTH24_STENCIL8, new_resolution.x, new_resolution.y, new_resolution.z, 0,
                         gl::GL_DEPTH_STENCIL, gl::GL_UNSIGNED_INT_24_8, nullptr);
+                    break;
+                case TextureType::Invalid:
+                    LOG(Fatal, "Creating invalid texture");
                     break;
                 }
                 gl::glBindTexture(gl::GL_TEXTURE_2D, 0);

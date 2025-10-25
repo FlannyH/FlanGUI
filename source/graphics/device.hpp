@@ -49,7 +49,7 @@ namespace Gfx {
         virtual void set_constants(const std::vector<uint32_t>& constants)                    = 0;
 
         // Resource management
-        virtual const Resource* const get_resource(const ResourceID id)                                                     = 0;
+        virtual Resource* get_resource(const ResourceID id)                                                     = 0;
         virtual void delete_resource(const ResourceID resource_to_destroy)                                                  = 0;
         virtual void bind_resources(const std::vector<ResourceWithOffset>& bindings)                                        = 0;
         virtual ResourceID create_buffer(const std::string_view& name, const size_t size_bytes, const void* data = nullptr) = 0;

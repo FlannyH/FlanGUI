@@ -361,7 +361,7 @@ namespace UI {
     inline void system_comp_sprite(Scene& scene) {
         for (const auto entity: scene.view<UI::Transform, Sprites, SpriteRender>()) {
             const auto* transform = scene.get_component<UI::Transform>(entity);
-            const auto* sprite    = scene.get_component<Sprites>(entity);
+            // const auto* sprite    = scene.get_component<Sprites>(entity);
             // If it has a clickable component, use that to render the button
             glm::vec4 color = {1, 1, 1, 1};
             if (const auto* mouse_interact = scene.get_component<MouseInteract>(entity)) {
@@ -390,7 +390,7 @@ namespace UI {
             const auto* transform = scene.get_component<UI::Transform>(entity);
             auto* text            = scene.get_component<Text>(entity);
             auto* value           = scene.get_component<Value>(entity);
-            const auto* slider    = scene.get_component<Slider>(entity);
+            // const auto* slider    = scene.get_component<Slider>(entity);
             const auto* range     = scene.get_component<NumberRange>(entity);
 
             if (value) {

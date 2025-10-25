@@ -1,6 +1,5 @@
 #include "renderer.hpp"
 #include "resource.hpp"
-#include "../common.hpp"
 #include "../log.hpp"
 #include "opengl/device_opengl.hpp"
 
@@ -67,7 +66,6 @@ namespace Gfx {
 
         // Create common buffers
         constexpr size_t render_queue_max_vertex_count = 65536 * 16;
-        constexpr size_t render_data_3d_buffer_size    = 128 * 1024;
         render_queue_2d_gpu_buffer =
             device->create_buffer("Render queue 2D GPU buffer", sizeof(Vertex2D) * render_queue_max_vertex_count);
 
@@ -538,7 +536,6 @@ namespace Gfx {
 
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc                 = wentry[i];
-                glm::vec4 color_noalpha = params.color * glm::vec4(1, 1, 1, 0);
                 glm::vec3 pos_depth =
                     (glm::vec3(cur_pos, params.transform.position.z) + glm::vec3(0, i * 2, 0)) + offsets[width_idx];
                 glm::vec2 off_uv     = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);

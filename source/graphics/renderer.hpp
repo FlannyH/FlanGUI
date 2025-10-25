@@ -45,7 +45,7 @@ namespace Gfx {
 
     struct PosTexcoord {
         glm::vec2 pos;
-        glm::vec2 texcoord;
+        glm::vec2 texcoord = {0.0f, 0.0f};
     };
 
     struct PixelRect {
