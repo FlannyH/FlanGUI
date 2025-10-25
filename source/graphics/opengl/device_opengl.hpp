@@ -1,7 +1,6 @@
 #pragma once
 #include "../device.hpp"
 
-#include <map>
 #include <deque>
 
 struct GLFWwindow;
@@ -21,7 +20,7 @@ namespace Gfx {
         void set_full_screen(bool full_screen) override;
         void begin_frame() override;
         void end_frame() override;
-        void clear_framebuffer(const ClearParams& clear_params);
+        void clear_framebuffer(const ClearParams& clear_params) override;
         void blit_pixels(ResourceID src, ResourceID dest, glm::ivec2 size, glm::ivec2 dest_tl, glm::ivec2 src_tl) override;
         void set_camera(const Transform& transform) override;
         void set_clip_rect(glm::ivec2 top_left, glm::ivec2 size) override;
@@ -37,7 +36,7 @@ namespace Gfx {
         void set_constants(const std::vector<uint32_t>& constants) override;
 
         // Resource management
-        const Resource* const get_resource(const ResourceID id);
+        Resource* get_resource(const ResourceID id) override;
         void delete_resource(const ResourceID resource_to_destroy) override;
         void bind_resources(const std::vector<ResourceWithOffset>& bindings) override;
         ResourceID create_buffer(const std::string_view& name, const size_t size_bytes, const void* data = nullptr) override;
