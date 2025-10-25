@@ -77,10 +77,18 @@ elseif(UNIX)
 endif()
 
 # Dependencies
-add_subdirectory(external/glfw)
+if (NOT TARGET glfw)
+    add_subdirectory(external/glfw)
+endif()
+if (NOT TARGET glbinding)
 add_subdirectory(external/glbinding)
+endif()
+if (NOT TARGET glm)
 add_subdirectory(external/glm)
+endif()
+if (NOT TARGET tomlplusplus)
 add_subdirectory(external/tomlplusplus)
+endif()
 target_include_directories(flangui PRIVATE 
   ${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/include/
   ${CMAKE_CURRENT_SOURCE_DIR}/external/glm/
