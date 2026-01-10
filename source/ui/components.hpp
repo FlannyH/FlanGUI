@@ -87,7 +87,7 @@ namespace UI {
             const auto tmp = std::wstring(other.text);
             text_length    = tmp.size() + 1;
             text           = new wchar_t[text_length];
-            memcpy(text, tmp.data(), text_length * 2);
+            memcpy(text, tmp.data(), text_length * sizeof(text[0]));
             ui_anchor   = other.ui_anchor;
             text_anchor = other.text_anchor;
             color       = other.color;
@@ -198,7 +198,7 @@ namespace UI {
 
         // Bind the text string to the variable name
         wchar_t* text_to_put = new wchar_t[text.text_length + 1];
-        memcpy(text_to_put, text.text, text.text_length * 2);
+        memcpy(text_to_put, text.text, text.text_length * sizeof(text.text[0]));
         scene.value_pool.set_ptr(name, text_to_put);
 
         return entity;
