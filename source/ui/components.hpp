@@ -1077,6 +1077,7 @@ namespace UI {
             const int index = (int)value->get_as_ref<double>();
             if (index != combobox->current_selected_index) {
                 combobox->current_selected_index = std::clamp(index, 0, static_cast<int>(combobox->list_items.size()) - 1);
+            }
 
             // If the mouse is clicked on in general
             if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
