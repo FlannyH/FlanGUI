@@ -91,7 +91,6 @@ namespace UI {
 } // namespace UI
 
 namespace UI {
-
     template <typename T> void Scene::add_component(EntityID entity, T comp) {
         auto comp_id = get_comp_id<T>();
         // Set the component flag for this component

@@ -161,11 +161,13 @@ namespace UI {
     struct Slider {
         float curr_bar_length;
     };
+
     struct Box {
         glm::vec4 color_inner = {0.25f, 0.25f, 0.25f, 1.0f};
         glm::vec4 color_outer = {1.0f, 1.0f, 1.0f, 1.0f};
         float thickness       = 2.0f;
     };
+
     struct Function {
         Function(std::function<void()> click) { on_click = std::move(click); }
         std::function<void()> on_click;
@@ -1008,14 +1010,15 @@ namespace UI {
                                     ? number_range->step_fine
                                     : number_range->step;
 
-                val += static_cast<double>(Input::mouse_scroll().y) * step;
+                double to_add = 0.0 + (1.0 * (Input::mouse_scroll().y > 0.0)) - (1.0 * (Input::mouse_scroll().y < 0.0));
+                val += to_add * step;
 
                 // Clamp the value to the bounds
                 val = std::max(val, number_range->min);
                 val = std::min(val, number_range->max);
 
                 // Handle changed variable, since we didn't use set
-                value->has_changed = (val != old_val);
+                value->has_changed |= (val != old_val);
             }
         }
     }
@@ -1069,6 +1072,11 @@ namespace UI {
             if (mouse_interact == nullptr) {
                 continue;
             }
+
+            // If a different UI element modifies the index, update the combobox
+            const int index = (int)value->get_as_ref<double>();
+            if (index != combobox->current_selected_index) {
+                combobox->current_selected_index = std::clamp(index, 0, static_cast<int>(combobox->list_items.size()) - 1);
 
             // If the mouse is clicked on in general
             if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
@@ -1139,6 +1147,18 @@ namespace UI {
     }
 
     inline void update_entities_input(Scene& scene, float delta_time, bool do_mouse_interact) {
+        // Handle value changes
+        for (const auto entity: scene.view<Value>()) {
+            auto* value          = scene.get_component<Value>(entity);
+            const auto* function = scene.get_component<Function>(entity);
+            auto* combobox = scene.get_component<Combobox>(entity);
+            if (value->has_changed) {
+                if (function) function->on_click();
+                if (combobox) combobox->current_selected_index = (int)value->get_as_ref<double>();
+                value->has_changed = false;
+            }
+        }
+
         // Handle clickable components
         if (do_mouse_interact) system_comp_mouse_interact(scene);
 
@@ -1152,16 +1172,6 @@ namespace UI {
 
             // Handle radio buttons
             system_comp_radio_buttons(scene);
-        }
-
-        // Handle value changes
-        for (const auto entity: scene.view<Value, Function>()) {
-            auto* value          = scene.get_component<Value>(entity);
-            const auto* function = scene.get_component<Function>(entity);
-            if (value->has_changed) {
-                value->has_changed = false;
-                function->on_click();
-            }
         }
 
         // Debug
