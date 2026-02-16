@@ -1,3 +1,5 @@
+#pragma once
+
 namespace Log {
     enum class Level { Debug = 0, Info, Warning, Error, Fatal, Disabled };
 

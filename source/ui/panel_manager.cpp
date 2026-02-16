@@ -1,6 +1,7 @@
 #include "panel_manager.hpp"
 #include "../graphics/renderer.hpp"
 #include "components.hpp"
+#include <cstdint>
 #include <stdexcept>
 #include <iostream>
 
@@ -267,7 +268,7 @@ namespace UI {
     void panel_input() {
         // If a panel is being dragged or resized, that's the one we should focus on. Otherwise, update whatever panels are
         // below the mouse
-        size_t panel_to_focus_on = -1;
+        size_t panel_to_focus_on = SIZE_MAX;
         bool do_mouse_interact   = true;
 
         for (const auto& index: panel_order) {
@@ -278,7 +279,7 @@ namespace UI {
             }
         }
 
-        if (panel_to_focus_on == -1) {
+        if (panel_to_focus_on == SIZE_MAX) {
             for (const auto& index: panel_order) {
                 const auto& panel   = panel_pool[index];
                 Hitbox panel_hitbox = {
@@ -295,7 +296,7 @@ namespace UI {
             }
         }
 
-        if (panel_to_focus_on != -1 && prev_panel_to_focus_on != panel_to_focus_on) {
+        if (panel_to_focus_on != SIZE_MAX && prev_panel_to_focus_on != panel_to_focus_on) {
             panel_order_scratch.clear();
             panel_order_scratch.push_back(panel_to_focus_on);
             for (const auto& value: panel_order) {
