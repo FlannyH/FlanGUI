@@ -474,7 +474,7 @@ namespace Gfx {
 
     float get_font_max_width() { return font->glyph_cell_size.x; }
 
-    void draw_text_pixels(const wchar_t* text, TextDrawParams params) {
+    void draw_text_pixels(std::wstring_view text, TextDrawParams params) {
         if (!font) return;
 
         glm::vec2 cur_pos = params.transform.position;
@@ -484,15 +484,14 @@ namespace Gfx {
         std::vector<float> widths;
         {
             float width      = 0;
-            const wchar_t* c = text - 1;
-            while (*(++c) != 0) {
-                if (*c == '\n') {
+            for (const auto c : text) {
+                if (c == '\n') {
                     widths.push_back(width);
                     width = 0;
                     continue;
                 }
 
-                std::vector<int>& wentry = font->wchar_mapping[(size_t)*c];
+                std::vector<int>& wentry = font->wchar_mapping[(size_t)c];
                 if (!wentry.empty())
                     width += static_cast<float>(font->glyph_rects[wentry[0]].size.x) * params.transform.scale.x;
             }
@@ -513,26 +512,25 @@ namespace Gfx {
         }
 
         int width_idx    = 0;
-        const wchar_t* c = text - 1;
-        while (*(++c) != 0) {
+        for (const auto c : text) {
             // Handle newline
-            if (*c == '\n') {
+            if (c == '\n') {
                 cur_pos.x = params.transform.position.x;
                 cur_pos.y += static_cast<float>(font->glyph_cell_size.y) * params.transform.scale.y;
                 width_idx++;
                 continue;
             }
-            if (*c == '\r') {
+            if (c == '\r') {
                 cur_pos.x = params.transform.position.x;
                 continue;
             }
-            if (*c == '\t') {
+            if (c == '\t') {
                 cur_pos.x += static_cast<float>(font->glyph_cell_size.x * 4);
                 continue;
             }
 
             // Create verts
-            std::vector<int>& wentry = font->wchar_mapping[(size_t)*c];
+            std::vector<int>& wentry = font->wchar_mapping[(size_t)c];
 
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc                 = wentry[i];

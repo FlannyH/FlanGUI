@@ -136,7 +136,7 @@ namespace UI {
                     auto panel_anchor     = (*node_tbl)["panel_anchor"].value_or<std::string>("center");
                     auto text_ui_anchor   = (*node_tbl)["text_ui_anchor"].value_or<std::string>("");
                     auto text_text_anchor = (*node_tbl)["text_text_anchor"].value_or<std::string>("");
-                    auto name_str         = std::string(name.begin(), name.end());
+                    auto name_str         = "elements." + std::string(name.begin(), name.end());
 
                     Transform trans    = {};
                     trans.top_left     = {0.0f, 0.0f};
