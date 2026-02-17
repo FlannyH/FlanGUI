@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <cstring>
+#include <format>
 #include <utility>
 #include <algorithm>
 #include <functional>
@@ -71,30 +72,24 @@ namespace UI {
             const std::wstring& string = std::wstring(), const glm::vec2 scl = {2, 2}, const glm::vec4 col = {1, 1, 1, 1},
             const Gfx::AnchorPoint ui_anchr  = Gfx::AnchorPoint::TopLeft,
             const Gfx::AnchorPoint txt_anchr = Gfx::AnchorPoint::TopLeft) {
-            text_length = string.size() + 1;
-            text        = new wchar_t[text_length];
-            memcpy(text, string.data(), (string.size() + 1) * sizeof(string[0]));
-            ui_anchor   = ui_anchr;
-            text_anchor = txt_anchr;
-            color       = col;
-            scale       = scl;
+            this->text_length = string.size() + 1;
+            this->text        = string;
+            this->ui_anchor   = ui_anchr;
+            this->text_anchor = txt_anchr;
+            this->color       = col;
+            this->scale       = scl;
         }
-
-        ~Text() { delete[] text; }
 
         Text(const Text& other) {
             // Copy values
-            const auto tmp = std::wstring(other.text);
-            text_length    = tmp.size() + 1;
-            text           = new wchar_t[text_length];
-            memcpy(text, tmp.data(), text_length * sizeof(text[0]));
-            ui_anchor   = other.ui_anchor;
-            text_anchor = other.text_anchor;
-            color       = other.color;
-            scale       = other.scale;
+            this->text        = other.text;
+            this->ui_anchor   = other.ui_anchor;
+            this->text_anchor = other.text_anchor;
+            this->color       = other.color;
+            this->scale       = other.scale;
         }
 
-        wchar_t* text;
+        std::wstring text;
         size_t text_length;
         Gfx::AnchorPoint ui_anchor;
         Gfx::AnchorPoint text_anchor;
@@ -197,11 +192,6 @@ namespace UI {
         scene.add_component<Text>(entity, text);
         scene.add_component<Value>(entity, {name, VarType::wstring, scene.value_pool});
         if (has_box) scene.add_component<Box>(entity);
-
-        // Bind the text string to the variable name
-        wchar_t* text_to_put = new wchar_t[text.text_length + 1];
-        memcpy(text_to_put, text.text, text.text_length * sizeof(text.text[0]));
-        scene.value_pool.set_ptr(name, text_to_put);
 
         return entity;
     }
@@ -396,26 +386,17 @@ namespace UI {
             const auto* range     = scene.get_component<NumberRange>(entity);
 
             if (value) {
-                if (value->type == VarType::wstring) {
-                    const auto string = (value->get_as_ptr<wchar_t>());
-                    text->text        = string;
-                }
                 if (value->type == VarType::float64) {
                     const double& val = scene.value_pool.get<double>(value->name);
                     if (text->text_length < 32) {
-                        delete text->text;
-                        text->text    = new wchar_t[32];
-                        text->text[0] = 'A';
-                        text->text[1] = '\0';
+                        text->text = L"";
                     }
 
                     // If all parts of the range are a whole number, print as if it were an integer
-                    swprintf(text->text, 32, L"%.2f", val);
-                    if (range) {
-                        wchar_t filter[] = L"%.xf";
-                        filter[2]        = L'0' + static_cast<wchar_t>(range->visual_decimal_places);
-                        swprintf(text->text, 32, filter, val);
-                    }
+                    if (range)
+                        text->text = std::format(L"{:.{}f}", val, range->visual_decimal_places);
+                    else 
+                        text->text = std::format(L"{:.2f}", val);
                 }
             }
 
