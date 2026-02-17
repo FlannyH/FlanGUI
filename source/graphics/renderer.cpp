@@ -1,6 +1,9 @@
 #include "renderer.hpp"
 #include "resource.hpp"
 #include "../log.hpp"
+#ifndef M_PI
+#include "../common.hpp"
+#endif
 #include "opengl/device_opengl.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
