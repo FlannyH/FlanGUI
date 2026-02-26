@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.16)
 project(flangui LANGUAGES CXX)
 
 # Options
-option(DEBUG_RENDER_QUEUE "Print render info entries when sending draw calls" ON)
+option(FLANGUI_DEBUG_RENDER_QUEUE "Print render info entries when sending draw calls" OFF)
 
-if(DEBUG_RENDER_QUEUE)
+if(FLANGUI_DEBUG_RENDER_QUEUE)
 	add_definitions(-DDEBUG_RENDER_QUEUE)
 	add_definitions(-DDEBUG)
 endif()
@@ -12,7 +12,6 @@ endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Source root
 set(src_root "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(all_src
@@ -40,20 +39,15 @@ set(all_src
     "${src_root}/log.hpp"
 )
 
-# sanity check: only keep files that actually exist (avoids configure-time errors)
 foreach(f IN LISTS all_src)
     if(NOT EXISTS "${f}")
         message(FATAL_ERROR "Missing source file: ${f}")
     endif()
 endforeach()
 
-# Create static library
 add_library(flangui STATIC ${all_src})
-
-# Position independent code for static libs (required on many linux toolchains)
 set_target_properties(flangui PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Public include dirs (headers live under source/)
 target_include_directories(flangui
     PUBLIC
         "${src_root}"
@@ -61,7 +55,6 @@ target_include_directories(flangui
         "${src_root}/ui"
 )
 
-# Compiler warnings and sane flags
 if(MSVC)
     target_compile_options(flangui PRIVATE /W4 /permissive-)
 else()
@@ -73,13 +66,6 @@ else()
         target_compile_options(flangui PRIVATE -flto)
         set_target_properties(flangui PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
-endif()
-
-# Platform-specific public defines (if you want to use them in code)
-if(WIN32)
-    target_compile_definitions(flangui PUBLIC PLATFORM_WINDOWS)
-elseif(UNIX)
-    target_compile_definitions(flangui PUBLIC PLATFORM_UNIX)
 endif()
 
 # Dependencies
