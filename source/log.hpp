@@ -3,7 +3,7 @@
 namespace Log {
     enum class Level { Debug = 0, Info, Warning, Error, Fatal, Disabled };
 
-#ifdef _DEBUG
+#ifdef DEBUG
     constexpr Level min_level = Level::Debug;
 #else
     constexpr Level min_level = Level::Info;
