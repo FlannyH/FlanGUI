@@ -34,6 +34,8 @@ namespace Gfx {
         void end_raster_pass() override;
         void execute_raster(const size_t n_vertices, const int vertex_offset) override;
         void set_constants(const std::vector<uint32_t>& constants) override;
+        void set_view_offset(const glm::vec2& offset) override;
+        void set_view_scale(const glm::vec2& scale) override;
 
         // Resource management
         Resource* get_resource(const ResourceID id) override;
@@ -63,6 +65,8 @@ namespace Gfx {
         uint32_t empty_vao;
         double delta_time = 0.0;
         std::vector<GLFWcursor*> cursors;
+        glm::vec2 view_offset = glm::vec2(0.0f);
+        glm::vec2 view_scale = glm::vec2(1.0f);
         ResourceID active_framebuffer = ResourceID::invalid();
         ResourceID render_pass_active = ResourceID::invalid();
         std::shared_ptr<Input::InputData> input_data = nullptr;

@@ -1,9 +1,6 @@
 #include "renderer.hpp"
 #include "resource.hpp"
 #include "../log.hpp"
-#ifndef M_PI
-#include "../common.hpp"
-#endif
 #include "opengl/device_opengl.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -17,38 +14,45 @@
 namespace Gfx {
     struct RenderInfo {
         RenderInfoType type = RenderInfoType::None;
+ 
+        struct {
+            glm::ivec2 scissor_rect_top_left = {0, 0};
+            glm::ivec2 scissor_rect_size     = {99999, 99999};
+            glm::ivec2 viewport_top_left     = {0, 0};
+            glm::ivec2 viewport_size         = {99999, 99999};
+            ResourceID target_framebuffer    = ResourceID::invalid();
+            bool scissor_rect_set            = false;
+            bool viewport_set                = false;
+        } persistent;
+        
+        struct {
+            std::vector<Vertex2D> vertices_to_render;
+            ResourceID texture_to_bind       = ResourceID::invalid();
+        } raster;
 
-        // Raster
-        std::vector<Vertex2D> vertices_to_render;
-        glm::ivec2 scissor_rect_top_left = {0, 0};
-        glm::ivec2 scissor_rect_size     = {99999, 99999};
-        glm::ivec2 viewport_top_left     = {0, 0};
-        glm::ivec2 viewport_size         = {99999, 99999};
-        ResourceID target_framebuffer    = ResourceID::invalid();
-        ResourceID texture_to_bind       = ResourceID::invalid();
+        struct {
+            ResourceID src_texture  = ResourceID::invalid();
+            ResourceID dst_texture  = ResourceID::invalid();
+            glm::ivec2 src_top_left = {0.0f, 0.0f};
+            glm::ivec2 dst_top_left = {0.0f, 0.0f};
+            glm::ivec2 size         = {0.0f, 0.0f};
+        } blit;
 
-        // Blit
-        ResourceID blit_src_texture  = ResourceID::invalid();
-        ResourceID blit_dst_texture  = ResourceID::invalid();
-        glm::ivec2 blit_src_top_left = {0.0f, 0.0f};
-        glm::ivec2 blit_dst_top_left = {0.0f, 0.0f};
-        glm::ivec2 blit_size         = {0.0f, 0.0f};
-
-        // Clear
-        ResourceID clear_target   = ResourceID::invalid();
-        bool clear_color_enable   = false;
-        bool clear_depth_enable   = false;
-        bool clear_stencil_enable = false;
-        glm::vec4 clear_color     = {0.0f, 0.0f, 0.0f, 0.0f};
-        float clear_depth         = 1.0f;
-        int clear_stencil         = 0;
+        struct {
+            ResourceID target   = ResourceID::invalid();
+            bool color_enable   = false;
+            bool depth_enable   = false;
+            bool stencil_enable = false;
+            glm::vec4 color     = {0.0f, 0.0f, 0.0f, 0.0f};
+            float depth         = 1.0f;
+            int stencil         = 0;
+        } clear;
     };
 
     Device* device        = nullptr; // Will be initialized to a child class of Device (e.g. DeviceOpenGL)
     glm::vec2 window_size = glm::vec2(0.0f);
     float aspect_ratio    = 1.0f;
     RenderInfo curr_render_info;
-    bool render_info_dirty = false;
     std::vector<glm::ivec4> clip_rect_stack;
 
     // 2D rendering
@@ -59,6 +63,38 @@ namespace Gfx {
 
     // Text
     std::shared_ptr<Font> font;
+
+    void fetch_render_info(RenderInfoType new_type, bool always_enqueue) {
+        bool type_changed = (curr_render_info.type != new_type);
+        bool prev_info_valid = curr_render_info.type != RenderInfoType::None;
+        
+        if (curr_render_info.type == RenderInfoType::Raster) {
+            prev_info_valid &= !curr_render_info.raster.vertices_to_render.empty();
+        }
+
+        if ((type_changed || always_enqueue) && prev_info_valid) {
+            if (prev_info_valid)
+                render_queue.push_back(curr_render_info);
+
+            switch (new_type) {
+                case RenderInfoType::None: 
+                    break;
+                case RenderInfoType::Raster:
+                    curr_render_info.raster = {};
+                    break;
+                case RenderInfoType::Blit:
+                    curr_render_info.blit = {};
+                    break;
+                case RenderInfoType::Clear:
+                    curr_render_info.clear = {};
+                    break;
+                default:
+                    LOG(Error, "Unhandled case in fetch_render_info() for type %i", (int)new_type);
+            }
+        }
+
+        curr_render_info.type = new_type;
+    }
 
     bool init(RenderAPI api, int window_width, int window_height, const char* title) {
         // Create rendering device
@@ -93,7 +129,9 @@ namespace Gfx {
 
     glm::vec2 get_window_size() { return window_size; }
 
-    glm::vec2 get_viewport_size() { return curr_render_info.viewport_size; }
+    glm::vec2 get_viewport_size() { 
+        return curr_render_info.persistent.viewport_size; 
+    }
 
     float get_delta_time() { return device->get_delta_time(); }
 
@@ -104,25 +142,24 @@ namespace Gfx {
     void set_cursor_mode(CursorMode cursor_mode) { device->set_cursor_mode(cursor_mode); }
 
     void set_render_target(ResourceID render_target) {
-        if (curr_render_info.target_framebuffer.as_u32() != render_target.as_u32()) {
-            curr_render_info.target_framebuffer = render_target;
-            render_info_dirty                   = true;
+        bool enqueue = true;
+        if (curr_render_info.type == RenderInfoType::Raster) {
+            enqueue = render_target.as_u32() == curr_render_info.persistent.target_framebuffer.as_u32();
+            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
         }
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.persistent.target_framebuffer = render_target;
     }
 
     void clear_framebuffer(const ClearParams& clear_params) {
-        if (curr_render_info.type == RenderInfoType::Raster && !curr_render_info.vertices_to_render.empty()) {
-            render_queue.push_back(curr_render_info);
-        }
+        fetch_render_info(RenderInfoType::Clear, true);
         curr_render_info.type                 = RenderInfoType::Clear;
-        curr_render_info.clear_color          = clear_params.color;
-        curr_render_info.clear_depth          = clear_params.depth;
-        curr_render_info.clear_stencil        = clear_params.stencil;
-        curr_render_info.clear_color_enable   = clear_params.do_clear_color;
-        curr_render_info.clear_depth_enable   = clear_params.do_clear_depth;
-        curr_render_info.clear_stencil_enable = clear_params.do_clear_stencil;
-        curr_render_info.clear_target         = curr_render_info.target_framebuffer;
-        render_queue.push_back(curr_render_info);
+        curr_render_info.clear.color          = clear_params.color;
+        curr_render_info.clear.depth          = clear_params.depth;
+        curr_render_info.clear.stencil        = clear_params.stencil;
+        curr_render_info.clear.color_enable   = clear_params.do_clear_color;
+        curr_render_info.clear.depth_enable   = clear_params.do_clear_depth;
+        curr_render_info.clear.stencil_enable = clear_params.do_clear_stencil;
     }
 
     void begin_frame() {
@@ -134,53 +171,79 @@ namespace Gfx {
         aspect_ratio  = get_viewport_size().x / get_viewport_size().y;
 
         render_queue.clear();
+        clip_rect_stack.clear();
+        curr_render_info = {};
+
         device->begin_frame();
         set_render_target(ResourceID::invalid());
         set_viewport({0, 0}, {w, h});
-        clip_rect_stack.clear();
         push_clip_rect({0, 0}, {w, h});
-        device->clear_framebuffer({
-            .color = glm::vec4(0.0f, 0.0f, 0.5f, 1.0f),
-        });
     }
 
     void end_frame() {
-        if (curr_render_info.type != RenderInfoType::None) render_queue.push_back(curr_render_info);
+        fetch_render_info(RenderInfoType::None, true);
 
         if (!render_queue.empty()) {
+#if DEBUG_RENDER_QUEUE            
+            LOG(Info, "----------------Frame----------------");
+#endif            
             for (const auto& render_info: render_queue) {
-                if (render_info.type == RenderInfoType::None) continue;
+                if (render_info.type == RenderInfoType::None) {
+#if DEBUG_RENDER_QUEUE                    
+                    LOG(Debug, "RenderInfo: None");
+#endif                    
+                    continue;
+                }
                 if (render_info.type == RenderInfoType::Raster) {
-                    if (render_info.vertices_to_render.empty()) continue;
+#if DEBUG_RENDER_QUEUE                    
+                    LOG(Debug, "RenderInfo: Raster: %4i triangles, texture %3i, fb %2i, viewport (size %4ix%4i at (%4i, %4i)), clip pos (size %4ix%4i at (%4i, %4i))", 
+                        render_info.raster.vertices_to_render.size() / 3, render_info.raster.texture_to_bind.id, render_info.persistent.target_framebuffer, 
+                        render_info.persistent.viewport_size.x, render_info.persistent.viewport_size.y, 
+                        render_info.persistent.viewport_top_left.x, render_info.persistent.viewport_top_left.y, 
+                        render_info.persistent.scissor_rect_size.x, render_info.persistent.scissor_rect_size.y,
+                        render_info.persistent.scissor_rect_top_left.x, render_info.persistent.scissor_rect_top_left.y
+                    );
+#endif                    
+                    if (render_info.raster.vertices_to_render.empty()) continue;
 
                     device->upload_data_to_buffer(
-                        render_queue_2d_gpu_buffer, 0, sizeof(Vertex2D) * render_info.vertices_to_render.size(),
-                        render_info.vertices_to_render.data());
+                        render_queue_2d_gpu_buffer, 0, sizeof(Vertex2D) * render_info.raster.vertices_to_render.size(),
+                        render_info.raster.vertices_to_render.data());
                     device->begin_raster_pass(pipeline_2d);
                     device->bind_resources({{render_queue_2d_gpu_buffer, 0}});
-                    device->bind_texture(0, render_info.texture_to_bind);
-                    device->set_render_target(render_info.target_framebuffer);
-                    device->set_viewport(render_info.viewport_top_left, render_info.viewport_size);
-                    device->set_clip_rect(render_info.scissor_rect_top_left, render_info.scissor_rect_size);
-                    device->execute_raster(render_info.vertices_to_render.size());
+                    device->bind_texture(0, render_info.raster.texture_to_bind);
+                    device->set_render_target(render_info.persistent.target_framebuffer);
+                    device->set_viewport(render_info.persistent.viewport_top_left, render_info.persistent.viewport_size);
+                    device->set_clip_rect(render_info.persistent.scissor_rect_top_left, render_info.persistent.scissor_rect_size);
+                    device->execute_raster(render_info.raster.vertices_to_render.size());
                     device->end_raster_pass();
                     continue;
                 }
                 if (render_info.type == RenderInfoType::Blit) {
+#if DEBUG_RENDER_QUEUE                    
+                    LOG(Debug, "RenderInfo: Blit: (%4ix%4i) from (%4ix%4i) on texture %3i, to (%4ix%4i) on texture %i",
+                        render_info.blit.size.x, render_info.blit.size.y,
+                        render_info.blit.src_top_left.x, render_info.blit.src_top_left.y, render_info.blit.src_texture,
+                        render_info.blit.dst_top_left.x, render_info.blit.dst_top_left.y, render_info.blit.dst_texture
+                    );
+#endif                    
                     device->blit_pixels(
-                        render_info.blit_src_texture, render_info.blit_dst_texture, render_info.blit_size,
-                        render_info.blit_dst_top_left, render_info.blit_src_top_left);
+                        render_info.blit.src_texture, render_info.blit.dst_texture, render_info.blit.size,
+                        render_info.blit.dst_top_left, render_info.blit.src_top_left);
                     continue;
                 }
                 if (render_info.type == RenderInfoType::Clear) {
-                    device->set_render_target(render_info.clear_target);
+#if DEBUG_RENDER_QUEUE                    
+                    LOG(Debug, "RenderInfo: Clear: target %3i", render_info.clear.target);
+#endif                    
+                    device->set_render_target(render_info.clear.target);
                     device->clear_framebuffer({
-                        .do_clear_color   = render_info.clear_color_enable,
-                        .do_clear_depth   = render_info.clear_depth_enable,
-                        .do_clear_stencil = render_info.clear_stencil_enable,
-                        .color            = render_info.clear_color,
-                        .depth            = render_info.clear_depth,
-                        .stencil          = render_info.clear_stencil,
+                        .do_clear_color   = render_info.clear.color_enable,
+                        .do_clear_depth   = render_info.clear.depth_enable,
+                        .do_clear_stencil = render_info.clear.stencil_enable,
+                        .color            = render_info.clear.color,
+                        .depth            = render_info.clear.depth,
+                        .stencil          = render_info.clear.stencil,
                     });
                 }
             }
@@ -190,30 +253,47 @@ namespace Gfx {
     }
 
     void push_clip_rect(glm::ivec2 top_left, glm::ivec2 size) {
-        if (curr_render_info.scissor_rect_top_left != top_left) render_info_dirty = true;
-        if (curr_render_info.scissor_rect_size != size) render_info_dirty = true;
-        curr_render_info.scissor_rect_top_left = top_left;
-        curr_render_info.scissor_rect_size     = size;
+        bool enqueue = false;
+        if (curr_render_info.type == RenderInfoType::Raster && curr_render_info.persistent.scissor_rect_set) {
+            if (top_left != curr_render_info.persistent.scissor_rect_top_left) enqueue = true;
+            if (size != curr_render_info.persistent.scissor_rect_size) enqueue = true;
+            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        }
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.persistent.scissor_rect_top_left = top_left;
+        curr_render_info.persistent.scissor_rect_size     = size;
         clip_rect_stack.push_back({top_left, size});
     }
 
     void pop_clip_rect() {
+        bool enqueue = false;
         clip_rect_stack.pop_back();
-        if (curr_render_info.scissor_rect_top_left.x != clip_rect_stack.back().x) render_info_dirty = true;
-        if (curr_render_info.scissor_rect_top_left.y != clip_rect_stack.back().y) render_info_dirty = true;
-        if (curr_render_info.scissor_rect_size.x != clip_rect_stack.back().z) render_info_dirty = true;
-        if (curr_render_info.scissor_rect_size.y != clip_rect_stack.back().w) render_info_dirty = true;
-        curr_render_info.scissor_rect_top_left.x = clip_rect_stack.back().x;
-        curr_render_info.scissor_rect_top_left.y = clip_rect_stack.back().y;
-        curr_render_info.scissor_rect_size.x     = clip_rect_stack.back().z;
-        curr_render_info.scissor_rect_size.y     = clip_rect_stack.back().w;
+        if (curr_render_info.type == RenderInfoType::Raster && curr_render_info.persistent.scissor_rect_set) {
+            if (curr_render_info.persistent.scissor_rect_top_left.x != clip_rect_stack.back().x) enqueue = true;
+            if (curr_render_info.persistent.scissor_rect_top_left.y != clip_rect_stack.back().y) enqueue = true;
+            if (curr_render_info.persistent.scissor_rect_size.x     != clip_rect_stack.back().z) enqueue = true;
+            if (curr_render_info.persistent.scissor_rect_size.y     != clip_rect_stack.back().w) enqueue = true;
+            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        }
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.persistent.scissor_rect_top_left.x = clip_rect_stack.back().x;
+        curr_render_info.persistent.scissor_rect_top_left.y = clip_rect_stack.back().y;
+        curr_render_info.persistent.scissor_rect_size.x     = clip_rect_stack.back().z;
+        curr_render_info.persistent.scissor_rect_size.y     = clip_rect_stack.back().w;
+        curr_render_info.persistent.scissor_rect_set        = true;
     }
 
     void set_viewport(glm::ivec2 top_left, glm::ivec2 size) {
-        if (curr_render_info.viewport_top_left != top_left) render_info_dirty = true;
-        if (curr_render_info.viewport_size != size) render_info_dirty = true;
-        curr_render_info.viewport_top_left = top_left;
-        curr_render_info.viewport_size     = size;
+        bool enqueue = false;
+        if (curr_render_info.type == RenderInfoType::Raster && curr_render_info.persistent.viewport_set) {
+            if (top_left != curr_render_info.persistent.viewport_top_left) enqueue = true;
+            if (size != curr_render_info.persistent.viewport_size) enqueue = true;
+            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        }
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.persistent.viewport_top_left = top_left;
+        curr_render_info.persistent.viewport_size     = size;
+        curr_render_info.persistent.viewport_set      = true;
     }
 
     void draw_line_2d(glm::vec2 a, glm::vec2 b, const DrawParams& draw_params) {
@@ -234,26 +314,20 @@ namespace Gfx {
     }
 
     void draw_triangle_2d(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, const DrawParams& draw_params) {
-        if (curr_render_info.texture_to_bind.as_u32() != draw_params.texture.as_u32()) {
-            curr_render_info.texture_to_bind = draw_params.texture;
-            render_info_dirty                = true;
-        }
+        bool enqueue = (curr_render_info.raster.texture_to_bind.as_u32() != draw_params.texture.as_u32());
+        enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.raster.texture_to_bind = draw_params.texture;
 
-        if (render_queue.empty() || render_info_dirty) {
-            curr_render_info.type = RenderInfoType::Raster;
-            render_queue.push_back(curr_render_info);
-            render_info_dirty = false;
-        }
-        auto& render_info = render_queue.back();
-
-        render_info.vertices_to_render.push_back(Vertex2D(
-            Gfx::anchor_offset(v0.pos * 2.0f, draw_params.anchor_point), draw_params.depth, draw_params.color, v0.texcoord,
+        curr_render_info.raster.vertices_to_render.push_back(Vertex2D(
+            Gfx::anchor_offset(v0.pos, draw_params.anchor_point) * 2.0f, draw_params.depth, draw_params.color, v0.texcoord,
             draw_params.texture));
-        render_info.vertices_to_render.push_back(Vertex2D(
-            Gfx::anchor_offset(v1.pos * 2.0f, draw_params.anchor_point), draw_params.depth, draw_params.color, v1.texcoord,
+        curr_render_info.raster.vertices_to_render.push_back(Vertex2D(
+            Gfx::anchor_offset(v1.pos, draw_params.anchor_point) * 2.0f, draw_params.depth, draw_params.color, v1.texcoord,
             draw_params.texture));
-        render_info.vertices_to_render.push_back(Vertex2D(
-            Gfx::anchor_offset(v2.pos * 2.0f, draw_params.anchor_point), draw_params.depth, draw_params.color, v2.texcoord,
+        curr_render_info.raster.vertices_to_render.push_back(Vertex2D(
+            Gfx::anchor_offset(v2.pos, draw_params.anchor_point) * 2.0f, draw_params.depth, draw_params.color, v2.texcoord,
             draw_params.texture));
     }
 
@@ -295,6 +369,22 @@ namespace Gfx {
             draw_quad_2d({v7}, {v6}, {v2}, {v3}, draw_params); // Bottom
             draw_quad_2d({v0}, {v4}, {v7}, {v3}, draw_params); // Left
         }
+    }
+    
+    void set_view_offset_2d(glm::vec2 offset) {
+        device->set_view_offset(offset);
+    }
+
+    void set_view_scale_2d(glm::vec2 scale) {
+        device->set_view_scale(scale);
+    }
+    
+    void set_view_offset_2d_pixels(glm::vec2 offset) {
+        device->set_view_offset(offset / get_viewport_size());
+    }
+
+    void set_view_scale_2d_pixels(glm::vec2 scale) {
+        device->set_view_scale(scale / get_viewport_size());
     }
 
     void draw_line_2d_pixels(glm::vec2 v0, glm::vec2 v1, DrawParams draw_params) {
@@ -362,25 +452,19 @@ namespace Gfx {
     }
 
     void blit_pixels(ResourceID src, ResourceID dest, glm::ivec2 size, glm::ivec2 dest_tl, glm::ivec2 src_tl) {
-        if (curr_render_info.type == RenderInfoType::Raster && !curr_render_info.vertices_to_render.empty()) {
-            render_queue.push_back(curr_render_info);
-        }
-        curr_render_info.vertices_to_render.clear();
+        fetch_render_info(RenderInfoType::Blit, true);
         curr_render_info.type              = RenderInfoType::Blit;
-        curr_render_info.blit_src_texture  = src;
-        curr_render_info.blit_dst_texture  = dest;
-        curr_render_info.blit_src_top_left = src_tl;
-        curr_render_info.blit_dst_top_left = dest_tl;
-        curr_render_info.blit_size         = size;
-        render_queue.push_back(curr_render_info);
-
-        curr_render_info.type = RenderInfoType::None;
+        curr_render_info.blit.src_texture  = src;
+        curr_render_info.blit.dst_texture  = dest;
+        curr_render_info.blit.src_top_left = src_tl;
+        curr_render_info.blit.dst_top_left = dest_tl;
+        curr_render_info.blit.size         = size;
     }
 
     std::shared_ptr<Font> load_font(const std::string& path) {
         std::shared_ptr<Font> new_font = std::make_shared<Font>();
 
-        // todo(lily): un-hardcode the mapping if we decide to expand font rendering
+        // todo(font_hardcode): desc: un-hardcode the mapping if we decide to expand font rendering
         // Process regular ascii first
         const std::wstring lut =
             L" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~¡¿";
@@ -477,8 +561,8 @@ namespace Gfx {
 
     float get_font_max_width() { return font->glyph_cell_size.x; }
 
-    void draw_text_pixels(std::wstring_view text, TextDrawParams params) {
-        if (!font) return;
+    glm::vec2 draw_text_pixels(const wchar_t* text, TextDrawParams params) {
+        if (!font) return glm::vec2(-1.0f, -1.0f);
 
         glm::vec2 cur_pos = params.transform.position;
 
@@ -487,14 +571,15 @@ namespace Gfx {
         std::vector<float> widths;
         {
             float width      = 0;
-            for (const auto c : text) {
-                if (c == '\n') {
+            const wchar_t* c = text - 1;
+            while (*(++c) != 0) {
+                if (*c == '\n') {
                     widths.push_back(width);
                     width = 0;
                     continue;
                 }
 
-                std::vector<int>& wentry = font->wchar_mapping[(size_t)c];
+                std::vector<int>& wentry = font->wchar_mapping[(size_t)*c];
                 if (!wentry.empty())
                     width += static_cast<float>(font->glyph_rects[wentry[0]].size.x) * params.transform.scale.x;
             }
@@ -515,25 +600,26 @@ namespace Gfx {
         }
 
         int width_idx    = 0;
-        for (const auto c : text) {
+        const wchar_t* c = text - 1;
+        while (*(++c) != 0) {
             // Handle newline
-            if (c == '\n') {
+            if (*c == '\n') {
                 cur_pos.x = params.transform.position.x;
                 cur_pos.y += static_cast<float>(font->glyph_cell_size.y) * params.transform.scale.y;
                 width_idx++;
                 continue;
             }
-            if (c == '\r') {
+            if (*c == '\r') {
                 cur_pos.x = params.transform.position.x;
                 continue;
             }
-            if (c == '\t') {
+            if (*c == '\t') {
                 cur_pos.x += static_cast<float>(font->glyph_cell_size.x * 4);
                 continue;
             }
 
             // Create verts
-            std::vector<int>& wentry = font->wchar_mapping[(size_t)c];
+            std::vector<int>& wentry = font->wchar_mapping[(size_t)*c];
 
             for (size_t i = 0; i < wentry.size(); i++) {
                 auto wc                 = wentry[i];
@@ -559,11 +645,17 @@ namespace Gfx {
             if (!wentry.empty())
                 cur_pos.x += static_cast<float>(font->glyph_rects[wentry[0]].size.x) * params.transform.scale.x;
         }
+
+        glm::vec2 printed_rect = glm::vec2(0.0f, height);
+        for (const auto width : widths) {
+            printed_rect.x = glm::max(width, printed_rect.x);
+        }
+        return printed_rect;
     }
 
-    void draw_text_pixels(const std::string& text, TextDrawParams params) {
+    glm::vec2 draw_text_pixels(const std::string& text, TextDrawParams params) {
         auto str = std::wstring(text.begin(), text.end());
-        draw_text_pixels(str.c_str(), params);
+        return draw_text_pixels(str.c_str(), params);
     }
 
     ResourceID create_buffer(const std::string_view& name, const size_t size, const void* data) {

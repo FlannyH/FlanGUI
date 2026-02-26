@@ -36,6 +36,8 @@ namespace Gfx {
         virtual void clear_framebuffer(const ClearParams& clear_params)                                                   = 0;
         virtual void blit_pixels(ResourceID src, ResourceID dest, glm::ivec2 size, glm::ivec2 dest_tl, glm::ivec2 src_tl) = 0;
         virtual void set_camera(const Transform& transform)                                                               = 0;
+        virtual void set_view_offset(const glm::vec2& offset)                                                             = 0;
+        virtual void set_view_scale(const glm::vec2& scale)                                                               = 0;
         virtual void set_clip_rect(glm::ivec2 top_left, glm::ivec2 size)                                                  = 0;
         virtual void set_viewport(glm::ivec2 top_left, glm::ivec2 size)                                                   = 0;
         virtual void set_render_target(ResourceID render_target)                                                          = 0;
