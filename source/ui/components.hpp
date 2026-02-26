@@ -705,7 +705,7 @@ namespace UI {
                 bottom_right - top_left - glm::vec2(0, combobox->button_height));
             size_t start_index = 0 + static_cast<size_t>(combobox->current_scroll_position / combobox->item_height);
             size_t end_index   = start_index + static_cast<size_t>(combobox->list_height / combobox->item_height) + 1;
-            if (abs(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
+            if (fabsf(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
                 for (size_t i = start_index; i <= end_index; ++i) {
                     // Stop if end of list was reached
                     if (i >= combobox->list_items.size()) break;

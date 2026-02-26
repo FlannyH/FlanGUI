@@ -94,6 +94,8 @@ namespace Gfx {
     void draw_triangle_2d(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, const DrawParams& draw_params = {});
     void draw_quad_2d(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, PosTexcoord v3, const DrawParams& draw_params = {});
     void draw_rectangle_2d(glm::vec2 top_left, glm::vec2 bottom_right, const DrawParams& draw_params = {});
+    void set_view_offset_2d(glm::vec2 offset);
+    void set_view_scale_2d(glm::vec2 scale);
 
     // 2D rendering in pixel coordinates
     void draw_line_2d_pixels(glm::vec2 v0, glm::vec2 v1, DrawParams draw_params = {});
@@ -112,8 +114,8 @@ namespace Gfx {
     std::shared_ptr<Font> load_font(const std::string& path);
     float get_font_height();
     float get_font_max_width();
-    void draw_text_pixels(const std::string& text, TextDrawParams params);
-    void draw_text_pixels(std::wstring_view text, TextDrawParams params);
+    glm::vec2 draw_text_pixels(const std::string& text, TextDrawParams params);
+    glm::vec2 draw_text_pixels(std::wstring_view text, TextDrawParams params);
 
     // Resources
     ResourceID create_buffer(const std::string_view& name, const size_t size, const void* data = nullptr);
