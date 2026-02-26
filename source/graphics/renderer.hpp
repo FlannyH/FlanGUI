@@ -103,6 +103,8 @@ namespace Gfx {
     void
     draw_quad_2d_pixels(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, PosTexcoord v3, const DrawParams& draw_params = {});
     void draw_rectangle_2d_pixels(glm::vec2 top_left, glm::vec2 bottom_right, DrawParams draw_params = {});
+    void set_view_offset_2d_pixels(glm::vec2 offset);
+    void set_view_scale_2d_pixels(glm::vec2 scale);
     glm::vec2 anchor_offset(glm::vec2 top_left, Gfx::AnchorPoint anchor);
     glm::vec2 anchor_offset_pixels(
         glm::vec2 top_left, Gfx::AnchorPoint anchor,
