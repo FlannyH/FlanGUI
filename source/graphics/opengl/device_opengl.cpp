@@ -1,4 +1,4 @@
-#include "resource.hpp"
+#include "../resource.hpp"
 #define GLFW_INCLUDE_NONE
 #include <glbinding/glbinding.h>
 #include <glbinding/gl/gl.h>
@@ -12,7 +12,7 @@
 #include "device_opengl.hpp"
 
 namespace Gfx {
-    static void glfw_error_callback(int error, const char* description) { LOG(Error, description); }
+    static void glfw_error_callback(int error, const char* description) { LOG(Error, "Error %i: %s", error, description); }
 
     static void opengl_debug_callback(
         gl::GLenum source, gl::GLenum type, gl::GLuint id, gl::GLenum severity, gl::GLsizei length, const gl::GLchar* message,
@@ -173,7 +173,7 @@ namespace Gfx {
 
     bool DeviceOpenGL::should_stay_open() { return !glfwWindowShouldClose(window); }
 
-    void DeviceOpenGL::set_full_screen(bool full_screen) { TODO(); }
+    void DeviceOpenGL::set_full_screen(bool full_screen) { (void)full_screen; TODO(); }
 
     void DeviceOpenGL::begin_frame() {
         // Calculate delta time
@@ -268,7 +268,7 @@ namespace Gfx {
             dest_tl.y + size.y, gl::GL_COLOR_BUFFER_BIT, gl::GL_LINEAR);
     }
 
-    void DeviceOpenGL::set_camera(const Transform& transform) { TODO(); }
+    void DeviceOpenGL::set_camera(const Transform& transform) { (void)transform; TODO(); }
 
     void DeviceOpenGL::set_clip_rect(glm::ivec2 top_left, glm::ivec2 size) {
         int w, h;
@@ -655,6 +655,9 @@ namespace Gfx {
     }
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+        (void)window;
+        (void)scancode;
+        (void)mods;
         auto incoming_input_data = Input::get_ptr_incoming();
         if (!incoming_input_data) return;
 
@@ -666,6 +669,7 @@ namespace Gfx {
     }
 
     static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
+        (void)window;
         auto incoming_input_data = Input::get_ptr_incoming();
         if (!incoming_input_data) return;
 
@@ -674,6 +678,8 @@ namespace Gfx {
     }
 
     static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+        (void)window;
+        (void)mods;
         auto incoming_input_data = Input::get_ptr_incoming();
         if (!incoming_input_data) return;
 
@@ -691,6 +697,7 @@ namespace Gfx {
     }
 
     static void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+        (void)window;
         auto incoming_input_data = Input::get_ptr_incoming();
         if (!incoming_input_data) return;
 

@@ -3,6 +3,10 @@
 #include "../log.hpp"
 #include "opengl/device_opengl.hpp"
 
+#ifndef M_PI
+#include "../common.hpp"
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <glm/geometric.hpp>
@@ -39,7 +43,6 @@ namespace Gfx {
         } blit;
 
         struct {
-            ResourceID target   = ResourceID::invalid();
             bool color_enable   = false;
             bool depth_enable   = false;
             bool stencil_enable = false;
@@ -116,7 +119,7 @@ namespace Gfx {
 
         // Precalculate circles
         for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
-            float angle   = ((float)i / (float)CIRCLE_LUT_SIZE) * 2.0f * M_PI;
+            float angle   = ((float)i / (float)CIRCLE_LUT_SIZE) * 2.0f * (float)M_PI;
             circle_lut[i] = glm::vec2(cos(angle), sin(angle));
         }
 
@@ -142,12 +145,11 @@ namespace Gfx {
     void set_cursor_mode(CursorMode cursor_mode) { device->set_cursor_mode(cursor_mode); }
 
     void set_render_target(ResourceID render_target) {
-        bool enqueue = true;
-        if (curr_render_info.type == RenderInfoType::Raster) {
-            enqueue = render_target.as_u32() == curr_render_info.persistent.target_framebuffer.as_u32();
-            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        if (render_target.as_u32() == curr_render_info.persistent.target_framebuffer.as_u32()) {
+            return;
         }
-        fetch_render_info(RenderInfoType::Raster, enqueue);
+
+        fetch_render_info(RenderInfoType::None, true);
         curr_render_info.persistent.target_framebuffer = render_target;
     }
 
@@ -175,9 +177,10 @@ namespace Gfx {
         curr_render_info = {};
 
         device->begin_frame();
-        set_render_target(ResourceID::invalid());
+        set_render_target({});
         set_viewport({0, 0}, {w, h});
         push_clip_rect({0, 0}, {w, h});
+        clear_framebuffer({});
     }
 
     void end_frame() {
@@ -234,9 +237,9 @@ namespace Gfx {
                 }
                 if (render_info.type == RenderInfoType::Clear) {
 #if DEBUG_RENDER_QUEUE                    
-                    LOG(Debug, "RenderInfo: Clear: target %3i", render_info.clear.target);
+                    LOG(Debug, "RenderInfo: Clear: target %3i", render_info.persistent.target_framebuffer);
 #endif                    
-                    device->set_render_target(render_info.clear.target);
+                    device->set_render_target(render_info.persistent.target_framebuffer);
                     device->clear_framebuffer({
                         .do_clear_color   = render_info.clear.color_enable,
                         .do_clear_depth   = render_info.clear.depth_enable,
@@ -262,6 +265,7 @@ namespace Gfx {
         fetch_render_info(RenderInfoType::Raster, enqueue);
         curr_render_info.persistent.scissor_rect_top_left = top_left;
         curr_render_info.persistent.scissor_rect_size     = size;
+        curr_render_info.persistent.scissor_rect_set      = true;
         clip_rect_stack.push_back({top_left, size});
     }
 
@@ -657,6 +661,7 @@ namespace Gfx {
     }
 
     ResourceID create_buffer(const std::string_view& name, const size_t size, const void* data) {
+        (void)data; // todo(create_buffer_with_data): desc: actually use `data`
         return device->create_buffer(name, size);
     }
 

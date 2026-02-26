@@ -80,20 +80,21 @@ if (NOT TARGET glbinding)
     set(OPTION_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     add_subdirectory(external/glbinding)
 endif()
-if (NOT TARGET glm)
-add_subdirectory(external/glm)
+if (NOT TARGET glm::glm)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(external/glm)
 endif()
 if (NOT TARGET tomlplusplus)
-add_subdirectory(external/tomlplusplus)
+    add_subdirectory(external/tomlplusplus)
 endif()
 target_include_directories(flangui PRIVATE 
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/glm/
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/stb/
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include/
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/glfw/include/
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/glm/
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/stb/
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include/
 )
 target_link_libraries(flangui 
-  glfw
-  glbinding::glbinding
-  glm::glm
+    glfw
+    glbinding::glbinding
+    glm::glm
 )
