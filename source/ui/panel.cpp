@@ -62,16 +62,16 @@ namespace UI {
 
                 // Snap to other panels
                 for (const auto& panel: UI::get_panels_in_order()) {
-                    if (abs(this->top_left.x - (panel->top_left.x + panel->size.x)) < snap_sensitivity) {
+                    if (fabsf(this->top_left.x - (panel->top_left.x + panel->size.x)) < snap_sensitivity) {
                         this->top_left.x = (panel->top_left.x + panel->size.x);
                     }
-                    if (abs((this->top_left.x + this->size.x) - panel->top_left.x) < snap_sensitivity) {
+                    if (fabsf((this->top_left.x + this->size.x) - panel->top_left.x) < snap_sensitivity) {
                         this->top_left.x = (panel->top_left.x - this->size.x);
                     }
-                    if (abs(this->top_left.y - (panel->top_left.y + panel->size.y)) < snap_sensitivity) {
+                    if (fabsf(this->top_left.y - (panel->top_left.y + panel->size.y)) < snap_sensitivity) {
                         this->top_left.y = (panel->top_left.y + panel->size.y);
                     }
-                    if (abs((this->top_left.y + this->size.y) - panel->top_left.y) < snap_sensitivity) {
+                    if (fabsf((this->top_left.y + this->size.y) - panel->top_left.y) < snap_sensitivity) {
                         this->top_left.y = (panel->top_left.y - this->size.y);
                     }
                 }
@@ -110,10 +110,10 @@ namespace UI {
         constexpr int resize_t = 4;
         constexpr int resize_b = 8;
 
-        if (abs(mouse_pos.x - (this->top_left.x + this->size.x)) < resize_sensitivity) new_resize_flags |= resize_r;
-        if (abs(mouse_pos.x - this->top_left.x) < resize_sensitivity) new_resize_flags |= resize_l;
-        if (abs(mouse_pos.y - (this->top_left.y + this->size.y)) < resize_sensitivity) new_resize_flags |= resize_b;
-        if (abs(mouse_pos.y - this->top_left.y) < resize_sensitivity) new_resize_flags |= resize_t;
+        if (fabsf(mouse_pos.x - (this->top_left.x + this->size.x)) < resize_sensitivity) new_resize_flags |= resize_r;
+        if (fabsf(mouse_pos.x - this->top_left.x) < resize_sensitivity) new_resize_flags |= resize_l;
+        if (fabsf(mouse_pos.y - (this->top_left.y + this->size.y)) < resize_sensitivity) new_resize_flags |= resize_b;
+        if (fabsf(mouse_pos.y - this->top_left.y) < resize_sensitivity) new_resize_flags |= resize_t;
 
         if (do_mouse_interact && is_mouse_inside_title_bar == false &&
             is_mouse_inside_panel) { // Only show resize if not focused on the title bar
@@ -139,32 +139,32 @@ namespace UI {
             if (this->resize_flags & resize_b) this->set_bottom(mouse_pos.y);
             if (this->resize_flags & resize_t) this->set_top(mouse_pos.y);
             if (should_snap) {
-                if (this->resize_flags & resize_r && abs(mouse_pos.x - (Gfx::get_viewport_size().x)) < snap_sensitivity) {
+                if (this->resize_flags & resize_r && fabsf(mouse_pos.x - (Gfx::get_viewport_size().x)) < snap_sensitivity) {
                     this->set_right(Gfx::get_viewport_size().x);
                 }
-                if (this->resize_flags & resize_l && abs(mouse_pos.x - (0.0f)) < snap_sensitivity) {
+                if (this->resize_flags & resize_l && fabsf(mouse_pos.x - (0.0f)) < snap_sensitivity) {
                     this->set_left(0.0f);
                 }
-                if (this->resize_flags & resize_b && abs(mouse_pos.y - (Gfx::get_viewport_size().y)) < snap_sensitivity) {
+                if (this->resize_flags & resize_b && fabsf(mouse_pos.y - (Gfx::get_viewport_size().y)) < snap_sensitivity) {
                     this->set_bottom(Gfx::get_viewport_size().y);
                 }
-                if (this->resize_flags & resize_t && abs(mouse_pos.y - (0.0f)) < snap_sensitivity) {
+                if (this->resize_flags & resize_t && fabsf(mouse_pos.y - (0.0f)) < snap_sensitivity) {
                     this->set_top(0.0f);
                 }
 
                 for (const auto& panel: UI::get_panels_in_order()) {
-                    if (this->resize_flags & resize_r && abs(mouse_pos.x - (panel->top_left.x)) < snap_sensitivity) {
+                    if (this->resize_flags & resize_r && fabsf(mouse_pos.x - (panel->top_left.x)) < snap_sensitivity) {
                         this->set_right(panel->top_left.x);
                     }
                     if (this->resize_flags & resize_l &&
-                        abs(mouse_pos.x - (panel->top_left.x + panel->size.x)) < snap_sensitivity) {
+                        fabsf(mouse_pos.x - (panel->top_left.x + panel->size.x)) < snap_sensitivity) {
                         this->set_left(panel->top_left.x + panel->size.x);
                     }
-                    if (this->resize_flags & resize_b && abs(mouse_pos.y - (panel->top_left.y)) < snap_sensitivity) {
+                    if (this->resize_flags & resize_b && fabsf(mouse_pos.y - (panel->top_left.y)) < snap_sensitivity) {
                         this->set_bottom(panel->top_left.y);
                     }
                     if (this->resize_flags & resize_t &&
-                        abs(mouse_pos.y - (panel->top_left.y + panel->size.y)) < snap_sensitivity) {
+                        fabsf(mouse_pos.y - (panel->top_left.y + panel->size.y)) < snap_sensitivity) {
                         this->set_top(panel->top_left.y + panel->size.y);
                     }
                 }

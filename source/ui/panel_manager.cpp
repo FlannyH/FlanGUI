@@ -2,8 +2,6 @@
 #include "../graphics/renderer.hpp"
 #include "components.hpp"
 #include <cstdint>
-#include <stdexcept>
-#include <iostream>
 
 #define TOML_EXCEPTIONS 0
 #include <toml++/toml.hpp>
