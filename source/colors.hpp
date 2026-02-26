@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <glm/vec4.hpp>
 
 #define MIN(a, b)          (a < b ? a : b)
@@ -65,7 +66,7 @@ namespace Colors {
         hue *= 6.f; // Doing this makes the calculations below easier, as we can now use round numbers. This is because hue is
                     // normally 0-360, but here 0-1, and we need to check in increments of 60.
         float chroma         = value * saturation;
-        float second_largest = chroma * (1.f - abs(fmod(hue, 2.f) - 1.f));
+        float second_largest = chroma * (1.f - fabsf(fmodf(hue, 2.f) - 1.f));
 
         // Calculate rgb
         float red   = 0.f;

@@ -14,7 +14,7 @@ namespace UI {
     std::vector<size_t> panel_order;
     std::vector<size_t> panel_order_scratch;
     std::vector<Panel*> panels;
-    size_t prev_panel_to_focus_on = -1;
+    size_t prev_panel_to_focus_on = SIZE_MAX;
     bool panels_dirty             = false;
 
     std::vector<Panel*>& get_panels_in_order() {
@@ -77,7 +77,7 @@ namespace UI {
             const std::string msg_str = std::string(msg);
             LOG(Error, "Failed to load panel \"%s\":", path);
             LOG(Error, "\t%s", msg_str.c_str());
-            return -1;
+            return SIZE_MAX;
         }
 
         // Parse metadata
@@ -128,8 +128,8 @@ namespace UI {
                         continue;
                     }
 
-                    auto top_left         = (*node_tbl)["top_left"].as_array();
-                    auto bottom_right     = (*node_tbl)["bottom_right"].as_array();
+                    auto new_top_left         = (*node_tbl)["top_left"].as_array();
+                    auto new_bottom_right     = (*node_tbl)["bottom_right"].as_array();
                     auto depth            = (*node_tbl)["depth"].value_or<float>(0.0f);
                     auto panel_anchor     = (*node_tbl)["panel_anchor"].value_or<std::string>("center");
                     auto text_ui_anchor   = (*node_tbl)["text_ui_anchor"].value_or<std::string>("");
@@ -139,14 +139,14 @@ namespace UI {
                     Transform trans    = {};
                     trans.top_left     = {0.0f, 0.0f};
                     trans.bottom_right = {256.0f, 128.0f};
-                    if (top_left) {
-                        trans.top_left.x = (*top_left)[0].value_or(0.0f);
-                        trans.top_left.y = (*top_left)[1].value_or(0.0f);
+                    if (new_top_left) {
+                        trans.top_left.x = (*new_top_left)[0].value_or(0.0f);
+                        trans.top_left.y = (*new_top_left)[1].value_or(0.0f);
                         trans.bottom_right += trans.top_left; // in case we don't have a bottom right
                     }
-                    if (bottom_right) {
-                        trans.bottom_right.x = (*bottom_right)[0].value_or(create_info.min_size.x);
-                        trans.bottom_right.y = (*bottom_right)[1].value_or(create_info.min_size.y);
+                    if (new_bottom_right) {
+                        trans.bottom_right.x = (*new_bottom_right)[0].value_or(create_info.min_size.x);
+                        trans.bottom_right.y = (*new_bottom_right)[1].value_or(create_info.min_size.y);
                     }
                     trans.depth  = depth;
                     trans.anchor = string_to_anchor(panel_anchor);
@@ -169,7 +169,7 @@ namespace UI {
                             text_color ? (*text_color)[3].value_or(1.0f) : 1.0f,
                         };
 
-                        if (!top_left || !bottom_right) {
+                        if (!new_top_left || !new_bottom_right) {
                             LOG(Warning, "%s: layout has text element \"%.*s\" with no transform, skipping element", path,
                                 name.length(), name.data());
                             continue;
