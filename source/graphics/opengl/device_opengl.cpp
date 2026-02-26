@@ -146,6 +146,7 @@ namespace Gfx {
         }
 
         glfwMakeContextCurrent(window);
+        glfwSwapInterval(0);
         glbinding::initialize(glfwGetProcAddress);
         gl::glEnable(gl::GL_DEBUG_OUTPUT);
         gl::glEnable(gl::GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -352,7 +353,11 @@ namespace Gfx {
         gl::glUseProgram(pipeline->gpu_handle32);
         gl::glBindVertexArray(empty_vao);
         gl::glEnable(gl::GL_SCISSOR_TEST);
+        gl::glEnable(gl::GL_BLEND);
+        gl::glBlendFunc(gl::GL_SRC_ALPHA, gl::GL_ONE_MINUS_SRC_ALPHA);
         gl::glUniform1i(0, 0); // texture_bound = 0
+        gl::glUniform2fv(gl::glGetUniformLocation(pipeline->gpu_handle32, "offset"), 1, &view_offset[0]);
+        gl::glUniform2fv(gl::glGetUniformLocation(pipeline->gpu_handle32, "scale"), 1, &view_scale[0]);
     }
 
     void DeviceOpenGL::end_raster_pass() {
@@ -505,14 +510,14 @@ namespace Gfx {
             gl::glTexImage3D(gl_type, 0, gl_format, resolution.x, resolution.y, resolution.z, 0, gl_format, gl_data_type, data);
             break;
         case TextureType::Invalid:
-            LOG(Fatal, "Creating invalid texture");
-            break;
+            LOG(Warning, "Failed to create texture with invalid `TextureType::Invalid`");
+            return ResourceID::invalid();
         }
 
         gl::glTexImage2D(gl_type, 0, gl_format, resolution.x, resolution.y, 0, gl_format, gl_data_type, data);
         gl::glGenerateMipmap(gl_type);
         gl::glTexParameteri(
-            gl_type, gl::GL_TEXTURE_MIN_FILTER, gl::GL_NEAREST); // todo(lily): expose this to the caller in some way
+            gl_type, gl::GL_TEXTURE_MIN_FILTER, gl::GL_NEAREST); // todo(expose_tex_filter): desc: expose this to the caller in some way
         gl::glTexParameteri(
             gl_type, gl::GL_TEXTURE_MAG_FILTER,
             gl::GL_NEAREST); //             especially useful for a future material system
