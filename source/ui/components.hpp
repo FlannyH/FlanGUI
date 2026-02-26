@@ -419,7 +419,7 @@ namespace UI {
                     .text_anchor     = text->text_anchor,
                     .color           = text->color,
                 });
-#ifdef _DEBUG
+#ifdef DEBUG
             // todo
             // renderer.draw_circle_solid(*transform, top_left, {4, 4}, {1, 0, 1, 1});
 #endif
@@ -1157,13 +1157,13 @@ namespace UI {
         }
 
         // Debug
-#ifdef _DEBUG
-        for (const auto entity: scene.view<UI::Transform>()) {
-            const auto* transform = scene.get_component<UI::Transform>(entity);
+#ifdef DEBUG
+        // for (const auto entity: scene.view<UI::Transform>()) {
+            // const auto* transform = scene.get_component<UI::Transform>(entity);
             // todo
             // renderer.draw_box_line(
             //     *transform, transform->top_left, transform->bottom_right, {1, 0, 1, 1}, 1, 0, transform->anchor);
-        }
+        // }
 #endif
         // Gfx::set_clip_rect();
     }

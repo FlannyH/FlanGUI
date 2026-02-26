@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.16)
 project(flangui LANGUAGES CXX)
 
 # Options
+option(DEBUG_RENDER_QUEUE "Print render info entries when sending draw calls" ON)
+
+if(DEBUG_RENDER_QUEUE)
+	add_definitions(-DDEBUG_RENDER_QUEUE)
+	add_definitions(-DDEBUG)
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Source root
 set(src_root "${CMAKE_CURRENT_SOURCE_DIR}/source")
