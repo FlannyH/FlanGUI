@@ -369,6 +369,14 @@ namespace Gfx {
         for (const uint32_t constant: constants) gl::glUniform1ui(i++, constant);
     }
 
+    void DeviceOpenGL::set_view_offset(const glm::vec2& offset) {
+        view_offset = offset;
+    }
+
+    void DeviceOpenGL::set_view_scale(const glm::vec2& scale) {
+        view_scale = scale;
+    }
+
     Resource* DeviceOpenGL::get_resource(const ResourceID id) {
         return (Resource*)(&resources.at(id.id));
     }
