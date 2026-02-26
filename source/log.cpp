@@ -1,6 +1,5 @@
 #include "log.hpp"
 
-#include <chrono>
 #include <mutex>
 #include <stdarg.h>
 #include <stdio.h>
@@ -45,8 +44,8 @@ namespace Log {
 #else
             constexpr int color_mapping[] = {0, 4, 2, 6, 1, 5, 3, 7};
             const int code                = color_mapping[color_value & 0x07] + 30;
-            if (color_value >= 0x08) offset += snprintf(msg_buf, sizeof(msg_buf) - offset, "\e[1;%im", code);
-            else offset += snprintf(msg_buf, sizeof(msg_buf) - offset, "\e[%im", code);
+            if (color_value >= 0x08) offset += snprintf(msg_buf, sizeof(msg_buf) - offset, "\x1B[1;%im", code);
+            else offset += snprintf(msg_buf, sizeof(msg_buf) - offset, "\x1B[%im", code);
 #endif
         }
 
@@ -67,7 +66,7 @@ namespace Log {
             const char* log_level_names[] = {
                 "[DEBUG] ", "[INFO]  ", "[WARN]  ", "[ERROR] ", "[FATAL] ",
             };
-            offset += snprintf(msg_buf + offset, sizeof(msg_buf) - offset, log_level_names[(size_t)level]);
+            offset += snprintf(msg_buf + offset, sizeof(msg_buf) - offset, "%s", log_level_names[(size_t)level]);
         }
 
         va_list args;
@@ -82,7 +81,7 @@ namespace Log {
 #ifdef _WIN32
             SetConsoleTextAttribute(hConsole, csbi.wAttributes);
 #else
-            offset += snprintf(msg_buf + offset, sizeof(msg_buf) - offset, "\e[0m");
+            offset += snprintf(msg_buf + offset, sizeof(msg_buf) - offset, "\x1B[0m");
 #endif
         }
     }

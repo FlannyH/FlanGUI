@@ -63,7 +63,7 @@ namespace Gfx {
     struct TextDrawParams {
         Transform transform{};
         AnchorPoint position_anchor = AnchorPoint::Center;
-        AnchorPoint text_anchor;
+        AnchorPoint text_anchor = AnchorPoint::TopLeft;
         Color color;
     };
 
