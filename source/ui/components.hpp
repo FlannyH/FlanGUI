@@ -100,10 +100,10 @@ namespace UI {
 
     struct NumberRange {
         // Bounds - the value is stored inside a Value component
-        double min;
-        double max;
-        double step;
-        double step_fine;
+        double min                     = 0.0;
+        double max                     = 1.0;
+        double step                    = 0.1;
+        double step_fine               = 0.01;
         double default_value           = 0.0;
         uint32_t visual_decimal_places = 2;
     };

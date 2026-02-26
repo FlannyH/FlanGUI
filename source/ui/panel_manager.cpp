@@ -54,7 +54,7 @@ namespace UI {
                 return i;
             }
         }
-        std::runtime_error("Ran out of UI panels!"); // todo: figure out how to do this properly
+        // LOG((Error, "Ran out of UI panels!"); // todo: figure out how to do this properly
         return 0;                                    // we can't get here so this one's just for the compiler, as a treat :3
     }
 
