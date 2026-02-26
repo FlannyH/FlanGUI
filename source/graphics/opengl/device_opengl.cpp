@@ -228,7 +228,7 @@ namespace Gfx {
         gl::glDisable(gl::GL_DEPTH_TEST);
         gl::glDisable(gl::GL_SCISSOR_TEST);
         gl::glClearColor(clear_params.color.r, clear_params.color.g, clear_params.color.b, clear_params.color.a);
-        gl::glClearDepth(1.0);
+        gl::glClearDepth(clear_params.depth);
         gl::glClearStencil(clear_params.stencil);
         gl::ClearBufferMask mask = gl::ClearBufferMask::GL_NONE_BIT;
         if (clear_params.do_clear_color) mask |= gl::ClearBufferMask::GL_COLOR_BUFFER_BIT;
