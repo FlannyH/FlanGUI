@@ -375,6 +375,7 @@ namespace Gfx {
         }
     }
     
+    // todo(view_render_info): desc: make the view offset part of RenderInfo, not some separate state
     void set_view_offset_2d(glm::vec2 offset) {
         device->set_view_offset(offset);
     }
