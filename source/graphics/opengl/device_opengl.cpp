@@ -430,7 +430,7 @@ namespace Gfx {
         resource->size                       = size_bytes;
         resources.at(resource_id_pair.id.id) = (Resource*)resource;
 
-        // todo(lily): support user specified buffer flags
+        // todo(ogl_buffer_flags): desc: support user specified buffer flags
         // const auto flags = gl::BufferStorageMask::GL_DYNAMIC_STORAGE_BIT;
 
         // Allocate buffer on GPU
@@ -743,5 +743,9 @@ namespace Gfx {
             .resource = resources.at(slot.id),
             .id       = slot,
         };
+    }
+
+    glm::vec2 DeviceOpenGL::get_view_scale() {
+      return view_scale;
     }
 } // namespace Gfx

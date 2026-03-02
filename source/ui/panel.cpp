@@ -33,7 +33,7 @@ namespace UI {
         }
 
         if (this->being_dragged) {
-            const glm::vec2 parent_size = Gfx::get_viewport_size(); // todo: nested panels should reference the parent
+            const glm::vec2 parent_size = Gfx::get_viewport_size(); // todo(nested_parent_reference_parent): desc: nested panels should reference the parent
             this->top_left              = (this->begin_drag_top_left - this->begin_drag_mouse_pos) + mouse_pos;
 
             // Unmaximize
