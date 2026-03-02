@@ -649,7 +649,7 @@ namespace Gfx {
                 cur_pos.x += static_cast<float>(font->glyph_rects[wentry[0]].size.x) * params.transform.scale.x;
         }
 
-        glm::vec2 printed_rect = glm::vec2(0.0f, height * widths.size());
+        glm::vec2 printed_rect = glm::vec2(0.0f, height);
         for (const auto width : widths) {
             printed_rect.x = glm::max(width, printed_rect.x);
         }
