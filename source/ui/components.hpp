@@ -34,7 +34,7 @@ namespace UI {
         Gfx::AnchorPoint anchor{};
     };
 
-    // todo: naming conventions
+    // todo(naming_conventions): desc: naming conventions
     enum class ClickState { idle = 0, hover, click };
 
     struct Clickable {};
@@ -66,7 +66,7 @@ namespace UI {
         std::vector<Sprite> sprites;
     };
 
-    // todo: add a version that has an editable textbox (for easy searching)
+    // todo(text_editable): desc: text - editable textbox (for easy searching)
     struct Text {
         Text(
             const std::wstring& string = std::wstring(), const glm::vec2 scl = {2, 2}, const glm::vec4 col = {1, 1, 1, 1},
@@ -132,7 +132,7 @@ namespace UI {
         size_t current_selected_index = 0;
     };
 
-    // todo: add a version that has an editable textbox (for easy searching)
+    // todo(combobox_editable): desc: combobox - add a version that has an editable textbox (for easy searching)
     struct Combobox {
         std::vector<std::wstring> list_items;
         float button_height           = 60.0f;
@@ -144,10 +144,10 @@ namespace UI {
         int current_selected_index    = 0;
     };
 
-    // todo: add checkbox component
-    // todo: add scrollable list component
-    // todo: add ui component grid component
-    // todo: add transform options so you can easily create ui without hardcoding
+    // todo(checkbox): desc: checkbox
+    // todo(scroll_list): desc: scrollable list
+    // todo(ui_grid): desc: ui grid
+    // todo(transform_options): desc: transform options so you can easily create ui without hardcoding
     struct Scrollable {}; // This is a tag without data
     struct NumberBox {};  // This is a tag without data
     struct Button {};     // This is a tag without data
@@ -299,7 +299,7 @@ namespace UI {
         // Create entity
         const EntityID entity = scene.new_entity();
         scene.add_component<UI::Transform>(entity, transform);
-        scene.add_component<Value>(entity, {name, VarType::float64, scene.value_pool}); // todo: add int type
+        scene.add_component<Value>(entity, {name, VarType::float64, scene.value_pool}); // todo(value_int_type): desc: add int type
         scene.get_component<Value>(entity)->set(static_cast<double>(initial_index));
         scene.add_component<MultiHitbox>(entity, multihitbox);
         scene.add_component<RadioButton>(entity, {options, initial_index});

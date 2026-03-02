@@ -301,15 +301,16 @@ namespace Gfx {
     }
 
     void draw_line_2d(glm::vec2 a, glm::vec2 b, const DrawParams& draw_params) {
+        // todo (fix_line_drawing): desc: fix line drawing 1px minimum width
         float width = draw_params.line_width;
-        if (width * get_viewport_size().y < 0.5f) {
-            width = 1.0f / window_size.y;
+        if ((width * get_viewport_size().y * device->get_view_scale().y) < 2.0f) {
+            width = 2.0f * device->get_view_scale().y / get_viewport_size().y;
         }
 
         // Figure out rectangle to draw
         const glm::vec2 direction               = b - a;
         const glm::vec2 perpendicular           = glm::normalize(glm::vec2(direction.y, -direction.x));
-        const glm::vec2 corrected_perpendicular = (perpendicular * width) * glm::vec2(1.0f / aspect_ratio, 1.0f);
+        const glm::vec2 corrected_perpendicular = (perpendicular * width) * glm::vec2(1.0f, aspect_ratio);
         const glm::vec2 v0                      = a - corrected_perpendicular;
         const glm::vec2 v1                      = a + corrected_perpendicular;
         const glm::vec2 v2                      = b + corrected_perpendicular;
@@ -352,6 +353,7 @@ namespace Gfx {
             const glm::vec2 tc3(draw_params.texcoord_tl.x, draw_params.texcoord_br.y);
             draw_quad_2d({v0, tc0}, {v1, tc1}, {v2, tc2}, {v3, tc3}, draw_params);
         } else {
+            // todo (fix_rect_drawing): desc: fix rect drawing 1px minimum width
             float x1 = std::min(top_left.x, bottom_right.x) + (draw_params.shape_outline_width / aspect_ratio);
             float x2 = std::max(top_left.x, bottom_right.x) - (draw_params.shape_outline_width / aspect_ratio);
             float y1 = std::min(top_left.y, bottom_right.y) + (draw_params.shape_outline_width);

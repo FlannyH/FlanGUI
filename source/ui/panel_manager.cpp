@@ -52,8 +52,9 @@ namespace UI {
                 return i;
             }
         }
-        // LOG((Error, "Ran out of UI panels!"); // todo: figure out how to do this properly
-        return 0;                                    // we can't get here so this one's just for the compiler, as a treat :3
+        // // todo(out_of_ui_panels): desc: figure out how to resolve the "out of ui panels" error properly
+        // LOG((Error, "Ran out of UI panels!"); 
+        return 0;
     }
 
     Gfx::AnchorPoint string_to_anchor(const std::string& str) {
