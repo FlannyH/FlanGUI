@@ -27,6 +27,7 @@ namespace Gfx {
         float shape_outline_width = 0.0f; // Values equal to or less than 0.0f will make the shape filled.
                                           // Otherwise, it will always result in at least 1 pixel wide lines.
         ResourceID texture = ResourceID::invalid();
+        bool enable_multisample = false;
     };
 
     struct DrawParams3D {
@@ -57,6 +58,7 @@ namespace Gfx {
         std::vector<PixelRect> glyph_rects;
         std::map<wchar_t, std::vector<int>> wchar_mapping;
         glm::i16vec2 glyph_cell_size = glm::i16vec2(0);
+        glm::i16vec2 texture_size = glm::i16vec2(0);
         ResourceID tex_id            = ResourceID::invalid();
     };
 

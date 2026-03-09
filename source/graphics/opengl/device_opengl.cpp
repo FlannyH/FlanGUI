@@ -1,4 +1,6 @@
 #include "../resource.hpp"
+#include "glbinding/gl/enum.h"
+#include "glbinding/gl/functions.h"
 #define GLFW_INCLUDE_NONE
 #include <glbinding/glbinding.h>
 #include <glbinding/gl/gl.h>
@@ -138,6 +140,7 @@ namespace Gfx {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
+        glfwWindowHint(GLFW_SAMPLES, 4);
         window = glfwCreateWindow(width, height, window_title, NULL, NULL);
         if (!window) {
             LOG(Fatal, "Failed to create GLFW window");
@@ -515,7 +518,6 @@ namespace Gfx {
         }
 
         gl::glTexImage2D(gl_type, 0, gl_format, resolution.x, resolution.y, 0, gl_format, gl_data_type, data);
-        gl::glGenerateMipmap(gl_type);
         gl::glTexParameteri(
             gl_type, gl::GL_TEXTURE_MIN_FILTER, gl::GL_NEAREST); // todo(expose_tex_filter): desc: expose this to the caller in some way
         gl::glTexParameteri(
@@ -556,6 +558,20 @@ namespace Gfx {
                 gl::GL_FRAMEBUFFER, gl::GL_STENCIL_ATTACHMENT, gl::GL_TEXTURE_2D, resource->fb_depth.gpu_handle32, 0);
             gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
             gl::glBindFramebuffer(gl::GL_FRAMEBUFFER, 0);
+        }
+
+        // todo(unhardcode_texture_mips): desc: unhardcode texture mip settings and expose to user
+        else {
+            gl::glBindTexture(gl_type, gl_id);
+            gl::glGenerateMipmap(gl_type);
+            glTexParameteri(gl_type, gl::GL_TEXTURE_BASE_LEVEL, 0);
+            glTexParameteri(gl_type, gl::GL_TEXTURE_MAX_LEVEL, 4);
+            glTexParameterf(gl_type, gl::GL_TEXTURE_LOD_BIAS, -0.2f);
+            gl::glTexParameteri(gl_type, gl::GL_TEXTURE_MIN_FILTER, gl::GL_LINEAR_MIPMAP_LINEAR);
+            gl::glTexParameteri(gl_type, gl::GL_TEXTURE_MAG_FILTER, gl::GL_NEAREST);
+            glTexParameteri(gl_type, gl::GL_TEXTURE_WRAP_S,gl::GL_CLAMP_TO_EDGE);
+            glTexParameteri(gl_type, gl::GL_TEXTURE_WRAP_T,gl::GL_CLAMP_TO_EDGE);
+            gl::glGenerateMipmap(gl_type);
         }
 
         return resource_id_pair.id;
@@ -747,5 +763,12 @@ namespace Gfx {
 
     glm::vec2 DeviceOpenGL::get_view_scale() {
       return view_scale;
+    }
+
+    void DeviceOpenGL::set_multisample(bool enable) {
+        if (enable)
+            gl::glEnable(gl::GLenum::GL_MULTISAMPLE);
+        else
+            gl::glDisable(gl::GLenum::GL_MULTISAMPLE);
     }
 } // namespace Gfx
