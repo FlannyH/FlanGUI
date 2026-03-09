@@ -32,6 +32,7 @@ namespace Gfx {
         struct {
             std::vector<Vertex2D> vertices_to_render;
             ResourceID texture_to_bind       = ResourceID::invalid();
+            bool enable_multisample          = false;
         } raster;
 
         struct {
@@ -218,7 +219,9 @@ namespace Gfx {
                     device->set_render_target(render_info.persistent.target_framebuffer);
                     device->set_viewport(render_info.persistent.viewport_top_left, render_info.persistent.viewport_size);
                     device->set_clip_rect(render_info.persistent.scissor_rect_top_left, render_info.persistent.scissor_rect_size);
+                    device->set_multisample(render_info.raster.enable_multisample);
                     device->execute_raster(render_info.raster.vertices_to_render.size());
+                    device->set_multisample(false);
                     device->end_raster_pass();
                     continue;
                 }
@@ -302,15 +305,12 @@ namespace Gfx {
 
     void draw_line_2d(glm::vec2 a, glm::vec2 b, const DrawParams& draw_params) {
         // todo (fix_line_drawing): desc: fix line drawing 1px minimum width
-        float width = draw_params.line_width;
-        if ((width * get_viewport_size().y * device->get_view_scale().y) < 2.0f) {
-            width = 2.0f * device->get_view_scale().y / get_viewport_size().y;
-        }
+        const float line_width = std::max(draw_params.line_width, (0.5f / device->get_view_scale().y) / window_size.y);
 
         // Figure out rectangle to draw
         const glm::vec2 direction               = b - a;
         const glm::vec2 perpendicular           = glm::normalize(glm::vec2(direction.y, -direction.x));
-        const glm::vec2 corrected_perpendicular = (perpendicular * width) * glm::vec2(1.0f, aspect_ratio);
+        const glm::vec2 corrected_perpendicular = (perpendicular * line_width) * glm::vec2(1.0f / aspect_ratio, 1.0f);
         const glm::vec2 v0                      = a - corrected_perpendicular;
         const glm::vec2 v1                      = a + corrected_perpendicular;
         const glm::vec2 v2                      = b + corrected_perpendicular;
@@ -321,9 +321,11 @@ namespace Gfx {
     void draw_triangle_2d(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, const DrawParams& draw_params) {
         bool enqueue = (curr_render_info.raster.texture_to_bind.as_u32() != draw_params.texture.as_u32());
         enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        enqueue |= curr_render_info.raster.enable_multisample != draw_params.enable_multisample;
         
         fetch_render_info(RenderInfoType::Raster, enqueue);
         curr_render_info.raster.texture_to_bind = draw_params.texture;
+        curr_render_info.raster.enable_multisample = draw_params.enable_multisample;
 
         curr_render_info.raster.vertices_to_render.push_back(Vertex2D(
             Gfx::anchor_offset(v0.pos, draw_params.anchor_point) * 2.0f, draw_params.depth, draw_params.color, v0.texcoord,
@@ -354,10 +356,11 @@ namespace Gfx {
             draw_quad_2d({v0, tc0}, {v1, tc1}, {v2, tc2}, {v3, tc3}, draw_params);
         } else {
             // todo (fix_rect_drawing): desc: fix rect drawing 1px minimum width
-            float x1 = std::min(top_left.x, bottom_right.x) + (draw_params.shape_outline_width / aspect_ratio);
-            float x2 = std::max(top_left.x, bottom_right.x) - (draw_params.shape_outline_width / aspect_ratio);
-            float y1 = std::min(top_left.y, bottom_right.y) + (draw_params.shape_outline_width);
-            float y2 = std::max(top_left.y, bottom_right.y) - (draw_params.shape_outline_width);
+            const float line_width = std::max(draw_params.shape_outline_width, (1.0f / device->get_view_scale().y) / window_size.y);
+            float x1 = std::min(top_left.x, bottom_right.x) + (line_width / aspect_ratio);
+            float x2 = std::max(top_left.x, bottom_right.x) - (line_width / aspect_ratio);
+            float y1 = std::min(top_left.y, bottom_right.y) + (line_width);
+            float y2 = std::max(top_left.y, bottom_right.y) - (line_width);
 
             // Outside coords
             const glm::vec2 v0(top_left.x, top_left.y);
@@ -524,7 +527,7 @@ namespace Gfx {
                     const uint32_t pixel = (reinterpret_cast<uint32_t*>(data))[sample_y * w + sample_x];
 
                     if ((pixel & 0x00FFFFFF) == 0x00007F) {
-                        width = glyph_x + 2;
+                        width = glyph_x + 1;
                         break;
                     }
                 }
@@ -537,7 +540,10 @@ namespace Gfx {
             for (int x = 0; x < w; x++) {
                 uint32_t& pixel = (reinterpret_cast<uint32_t*>(data))[y * w + x];
                 if ((pixel & 0x00FFFFFF) == 0x00007F) {
-                    pixel = 0;
+                    pixel = 0x00FFFFFF;
+                }
+                if ((pixel & 0xFF000000) == 0x00000000) {
+                    pixel = 0x00FFFFFF;
                 }
             }
         }
@@ -545,12 +551,16 @@ namespace Gfx {
         // Populate glyph rectangles
         for (int y = 0; y < 8; ++y) {
             for (int x = 0; x < 16; ++x) {
+                if (widths[x + (y * 16)] > glyph_size.x) {
+                    LOG(Error, "what");
+                }
                 new_font->glyph_rects.emplace_back(
                     PixelRect{.top_left = {x * glyph_size.x, y * glyph_size.y}, .size = {widths[x + (y * 16)], glyph_size.y}});
             }
         }
 
         new_font->glyph_cell_size = glyph_size;
+        new_font->texture_size = {w, h};
 
         new_font->tex_id = create_texture_from_data(TextureCreationParams{
             .format = PixelFormat::RGBA_8,
@@ -631,19 +641,25 @@ namespace Gfx {
                 glm::vec3 pos_depth =
                     (glm::vec3(cur_pos, params.transform.position.z) + glm::vec3(0, i * 2, 0)) + offsets[width_idx];
                 glm::vec2 off_uv     = glm::vec2(wc % 16, wc >> 4) / glm::vec2(16.f, 8.f);
-                glm::vec2 glyph_size = glm::vec2(1.f / 16.f, 1.f / 8.f);
-                float grid_w_2       = static_cast<float>(font->glyph_cell_size.x) * params.transform.scale.x;
-                float grid_h_2       = static_cast<float>(font->glyph_cell_size.y) * params.transform.scale.y;
+                glm::vec2 glyph_size = ((glm::vec2)font->glyph_rects[wc].size) / ((glm::vec2)font->texture_size);
+                float rect_w_2       = font->glyph_rects[wc].size.x * params.transform.scale.x;
+                float rect_h_2       = font->glyph_rects[wc].size.y * params.transform.scale.y;
+
+                const glm::vec2 margin = glm::vec2((1.5f / 16.0f), 0.0f) / device->get_view_scale();
+                const glm::vec2 inv_margin = glm::vec2(1.0f) - margin;
 
                 draw_rectangle_2d_pixels(
-                    pos_depth + glm::vec3(0, 0, 0.0f), pos_depth + glm::vec3(grid_w_2, grid_h_2, 0.0f),
+                    pos_depth + glm::vec3(margin.x * rect_w_2, margin.y * rect_h_2, 0.0f), pos_depth + glm::vec3(rect_w_2 * inv_margin.x, rect_h_2 * inv_margin.y, 0.0f),
                     DrawParams{
-                        .color        = params.color,
-                        .depth        = pos_depth.z,
-                        .anchor_point = params.position_anchor,
-                        .texcoord_tl  = off_uv,
-                        .texcoord_br  = off_uv + glyph_size,
-                        .texture      = font->tex_id});
+                        .color              = params.color,
+                        .depth              = pos_depth.z,
+                        .anchor_point       = params.position_anchor,
+                        .texcoord_tl        = off_uv + glyph_size * margin,
+                        .texcoord_br        = off_uv + glyph_size * inv_margin,
+                        .texture            = font->tex_id,
+                        .enable_multisample = true
+                    }
+                );
             }
 
             // Move cursor

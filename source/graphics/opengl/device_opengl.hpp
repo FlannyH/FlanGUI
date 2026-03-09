@@ -26,6 +26,7 @@ namespace Gfx {
         void set_clip_rect(glm::ivec2 top_left, glm::ivec2 size) override;
         void set_viewport(glm::ivec2 top_left, glm::ivec2 size) override;
         void set_render_target(ResourceID render_target) override;
+        void set_multisample(bool enable) override;
         float get_delta_time() override;
 
         // Rendering pipelines
