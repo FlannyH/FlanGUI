@@ -651,7 +651,7 @@ namespace Gfx {
                         .color              = params.color,
                         .depth              = pos_depth.z,
                         .anchor_point       = params.position_anchor,
-                        .texcoord_tl        = off_uv + glyph_size,
+                        .texcoord_tl        = off_uv,
                         .texcoord_br        = off_uv + glyph_size,
                         .texture            = font->tex_id,
                         .enable_multisample = true
