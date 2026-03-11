@@ -195,6 +195,10 @@ namespace UI {
     }
 
     void Panel::render_window() {
+        // Round to integer positions for rendering so there's no subpixel shenanigans
+        auto temp_tl = this->top_left;
+        this->top_left = glm::floor(this->top_left);
+        
         // Render content to separate render target
         const glm::ivec2 content_size = {(int)this->size.x - 2, (int)(this->size.y - window_bar_height - 2)};
         Gfx::set_render_target(this->content_render_target);
@@ -236,6 +240,8 @@ namespace UI {
             this->content_render_target, Gfx::ResourceID::invalid(), this->size - glm::vec2(2, window_bar_height + 2),
             {this->top_left + glm::vec2(1, 1 + window_bar_height)}, {0, 0});
         Gfx::pop_clip_rect();
+
+        this->top_left = temp_tl;
     }
 
     void Panel::set_top(float top) {
