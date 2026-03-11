@@ -59,6 +59,7 @@ namespace Gfx {
         std::map<wchar_t, std::vector<int>> wchar_mapping;
         glm::i16vec2 glyph_cell_size = glm::i16vec2(0);
         glm::i16vec2 texture_size = glm::i16vec2(0);
+        int h_pad = 2;
         ResourceID tex_id            = ResourceID::invalid();
     };
 
