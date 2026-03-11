@@ -9,6 +9,13 @@
 #define MAX_PANEL_COUNT 256
 
 namespace UI {
+    struct Connection {
+        Pin source;
+        Pin destination;
+    };
+
+    std::vector<Connection> connections;
+
     Panel panel_pool[MAX_PANEL_COUNT]{};
     bool panel_allocated[MAX_PANEL_COUNT] = {false};
     std::vector<size_t> panel_order;
@@ -254,7 +261,20 @@ namespace UI {
                         UI::create_combobox(
                             scene, variable_string.empty() ? name_str : variable_string, trans, entries_ws_vec, default_index,
                             item_height, list_height);
+                    } else if (*type == "pin") {
+                        auto variable        = (*node_tbl)["pin_type"].value_or<std::string>("");
+                        auto name        = (*node_tbl)["pin_name"].value_or<std::string>("");
+                        Pin pin{};
+                        
+                        pin.panel_id = panel_id;
 
+                        if (variable.contains("midi") && variable.contains("in")) pin.type = PinType::MidiIn;
+                        else if (variable.contains("midi") && variable.contains("out")) pin.type = PinType::MidiOut;
+                        else if (variable.contains("audio") && variable.contains("in")) pin.type = PinType::AudioIn;
+                        else if (variable.contains("audio") && variable.contains("out")) pin.type = PinType::AudioOut;
+                        else LOG(Warning, "%s: unknown pin type \"%s\"", path, variable.c_str());
+                        
+                        panel.pins[name] = pin;
                     } else {
                         LOG(Warning, "%s: unknown element type \"%s\"", path, (*type)->c_str());
                     }

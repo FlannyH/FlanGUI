@@ -11,6 +11,21 @@ namespace UI {
         glm::vec4 bg_color = glm::vec4(0.1f, 0.1f, 0.2f, 1.0f);
         bool maximized     = false;
     };
+
+    enum class PinType {
+        None = 0,
+        MidiIn,
+        MidiOut,
+        AudioIn,
+        AudioOut,
+    };
+
+    struct Pin {
+        PinType type;
+        size_t panel_id;
+        size_t pin_id;// index into pin_ids_input, or pin_ids_output, depending on the pin type
+    };
+
     std::vector<Panel*>& get_panels_in_order();
     size_t new_panel(const PanelCreateInfo& panel_create_info);
     size_t load_panel(const char* path, const glm::vec2 top_left = {0.0f, 0.0f});

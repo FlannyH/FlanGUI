@@ -1,4 +1,5 @@
 #include "panel.hpp"
+#include "colors.hpp"
 #include "components.hpp"
 #include "panel_manager.hpp"
 #include "../graphics/renderer.hpp"
@@ -218,11 +219,15 @@ namespace UI {
         Gfx::set_render_target();
         Gfx::set_viewport({0, 0}, Gfx::get_window_size());
         Gfx::push_clip_rect(this->top_left, this->size);
-        Gfx::draw_rectangle_2d_pixels( // Title bar background
+
+        // Title bar background
+        Gfx::draw_rectangle_2d_pixels(
             this->top_left, this->top_left + glm::vec2(this->size.x, window_bar_height + 2),
             Gfx::DrawParams{
                 .color = Colors::DARK_BLUE, .anchor_point = Gfx::AnchorPoint::TopLeft, .shape_outline_width = 0.0f});
-        Gfx::draw_text_pixels( // Panel name
+
+        // Panel name
+        Gfx::draw_text_pixels(
             this->title,
             Gfx::TextDrawParams{
                 .transform = {.position = glm::vec3(this->top_left + glm::vec2(4.0f, 6.0f), 0.0f), .scale = {2.0f, 2.0f, 1.0f}},
@@ -230,17 +235,88 @@ namespace UI {
                 .text_anchor     = Gfx::AnchorPoint::TopLeft,
                 .color           = Colors::WHITE,
             });
-        Gfx::draw_rectangle_2d_pixels( // Title bar border
+
+        // Title bar border
+        Gfx::draw_rectangle_2d_pixels(
             this->top_left, this->top_left + glm::vec2(this->size.x, window_bar_height + 2),
             Gfx::DrawParams{.anchor_point = Gfx::AnchorPoint::TopLeft, .shape_outline_width = 2.0f});
-        Gfx::draw_rectangle_2d_pixels( // Content border
+
+        // Content border
+        Gfx::draw_rectangle_2d_pixels( 
             this->top_left + glm::vec2(0, window_bar_height), this->top_left + this->size,
             Gfx::DrawParams{.anchor_point = Gfx::AnchorPoint::TopLeft, .shape_outline_width = 2.0f});
-        Gfx::blit_pixels( // Content
+
+        // Content
+        Gfx::blit_pixels(
             this->content_render_target, Gfx::ResourceID::invalid(), this->size - glm::vec2(2, window_bar_height + 2),
             {this->top_left + glm::vec2(1, 1 + window_bar_height)}, {0, 0});
+
         Gfx::pop_clip_rect();
 
+        // Pins
+        constexpr glm::vec2 pin_size(48.0f, 48.0f);
+        constexpr float clearance = 4.0f;
+        float offset = window_bar_height + pin_size.y / 2;
+        constexpr float step = 64.0f;
+        
+        for (const auto& pin : this->pins) {
+            const glm::vec2 pin_tl = this->top_left + glm::vec2(this->size.x, offset) + glm::vec2(0.0f, clearance);
+            const glm::vec2 pin_br = pin_size + this->top_left + glm::vec2(this->size.x, offset) - glm::vec2(0.0f, clearance);
+            const glm::vec2 pin_center = (pin_tl + pin_br) * 0.5f;
+            const glm::vec2 pin_top = {pin_center.x, pin_tl.y};
+            const glm::vec2 pin_left = {pin_tl.x, pin_center.y};
+            const glm::vec2 pin_right = {pin_br.x, pin_center.y};
+            const glm::vec2 pin_half_circle_size = (pin_size / 2.0f) - clearance;
+
+            constexpr float outline_circle_width = 5.5f;
+            constexpr float circle_width = 4.0f;
+
+            // Stick outline
+            Gfx::draw_line_2d_pixels(pin_left, pin_center, {
+                .color = Colors::WHITE,
+                .depth = 0.0f,
+                .anchor_point = Gfx::AnchorPoint::TopLeft,
+                .line_width = outline_circle_width,
+                .enable_multisample = true,
+            });
+
+            Gfx::push_clip_rect({}, pin_center + pin_half_circle_size.y + outline_circle_width);
+
+            // Half-circle outline
+            Gfx::draw_circle_2d_pixels(pin_right, pin_half_circle_size, {
+                .color = Colors::WHITE,
+                .depth = 0.0f,
+                .anchor_point = Gfx::AnchorPoint::TopLeft,
+                .shape_outline_width = outline_circle_width,
+                .enable_multisample = true,
+            });
+
+            Gfx::pop_clip_rect();
+            Gfx::push_clip_rect({}, pin_center + pin_half_circle_size.y + circle_width);
+
+            // Half-circle
+            Gfx::draw_circle_2d_pixels(pin_right, pin_half_circle_size, {
+                .color = Colors::BLUE,
+                .depth = 0.0f,
+                .anchor_point = Gfx::AnchorPoint::TopLeft,
+                .shape_outline_width = circle_width,
+                .enable_multisample = true,
+            });
+
+            // Stick
+            Gfx::draw_line_2d_pixels(pin_left, pin_center, {
+                .color = Colors::BLUE,
+                .depth = 0.0f,
+                .anchor_point = Gfx::AnchorPoint::TopLeft,
+                .line_width = circle_width,
+                .enable_multisample = true,
+            });
+
+            Gfx::pop_clip_rect();
+
+            offset += step;
+        }
+            
         this->top_left = temp_tl;
     }
 
