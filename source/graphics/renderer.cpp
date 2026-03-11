@@ -527,7 +527,7 @@ namespace Gfx {
                     const uint32_t pixel = (reinterpret_cast<uint32_t*>(data))[sample_y * w + sample_x];
 
                     if ((pixel & 0x00FFFFFF) == 0x00007F) {
-                        width = glyph_x + 1;
+                        width = glyph_x;
                         break;
                     }
                 }
@@ -597,7 +597,7 @@ namespace Gfx {
 
                 std::vector<int>& wentry = font->wchar_mapping[(size_t)c];
                 if (!wentry.empty())
-                    width += static_cast<float>(font->glyph_rects[wentry[0]].size.x) * params.transform.scale.x;
+                    width += static_cast<float>(font->glyph_rects[wentry[0]].size.x + font->h_pad) * params.transform.scale.x;
             }
             widths.push_back(width); // Text may not end with a newline, so we need to push back the last width manually
         }
@@ -645,17 +645,14 @@ namespace Gfx {
                 float rect_w_2       = font->glyph_rects[wc].size.x * params.transform.scale.x;
                 float rect_h_2       = font->glyph_rects[wc].size.y * params.transform.scale.y;
 
-                const glm::vec2 margin = glm::vec2((1.5f / 16.0f), 0.0f) / device->get_view_scale();
-                const glm::vec2 inv_margin = glm::vec2(1.0f) - margin;
-
                 draw_rectangle_2d_pixels(
-                    pos_depth + glm::vec3(margin.x * rect_w_2, margin.y * rect_h_2, 0.0f), pos_depth + glm::vec3(rect_w_2 * inv_margin.x, rect_h_2 * inv_margin.y, 0.0f),
+                    pos_depth, pos_depth + glm::vec3(rect_w_2, rect_h_2, 0.0f),
                     DrawParams{
                         .color              = params.color,
                         .depth              = pos_depth.z,
                         .anchor_point       = params.position_anchor,
-                        .texcoord_tl        = off_uv + glyph_size * margin,
-                        .texcoord_br        = off_uv + glyph_size * inv_margin,
+                        .texcoord_tl        = off_uv + glyph_size,
+                        .texcoord_br        = off_uv + glyph_size,
                         .texture            = font->tex_id,
                         .enable_multisample = true
                     }
@@ -664,12 +661,12 @@ namespace Gfx {
 
             // Move cursor
             if (!wentry.empty())
-                cur_pos.x += static_cast<float>(font->glyph_rects[wentry[0]].size.x) * params.transform.scale.x;
+                cur_pos.x += static_cast<float>(font->glyph_rects[wentry[0]].size.x + font->h_pad) * params.transform.scale.x;
         }
 
         glm::vec2 printed_rect = glm::vec2(0.0f, height);
         for (const auto width : widths) {
-            printed_rect.x = glm::max(width, printed_rect.x);
+            printed_rect.x = glm::max(width + font->h_pad, printed_rect.x);
         }
         return printed_rect;
     }
