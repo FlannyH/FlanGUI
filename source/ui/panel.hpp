@@ -5,6 +5,7 @@
 #include "../graphics/resource.hpp"
 
 namespace UI {
+    struct Pin;
     struct Panel {
         Scene scene;
         std::string title = "Yippee panels have names now :3";
@@ -24,6 +25,8 @@ namespace UI {
         bool being_dragged                    = false;
         bool being_resized                    = false;
         bool maximized                        = false;
+
+        std::map<std::string, Pin> pins;
 
         void update(float delta_time, bool do_mouse_interact);
         void render_window();
