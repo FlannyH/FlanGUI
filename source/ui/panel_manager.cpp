@@ -262,19 +262,25 @@ namespace UI {
                             scene, variable_string.empty() ? name_str : variable_string, trans, entries_ws_vec, default_index,
                             item_height, list_height);
                     } else if (*type == "pin") {
-                        auto variable        = (*node_tbl)["pin_type"].value_or<std::string>("");
-                        auto name        = (*node_tbl)["pin_name"].value_or<std::string>("");
+                        auto pin_type        = (*node_tbl)["pin_type"].value_or<std::string>("");
+                        auto pin_direction        = (*node_tbl)["pin_direction"].value_or<std::string>("");
+                        auto pin_name        = (*node_tbl)["pin_name"].value_or<std::string>("");
+                        auto pin_position_y        = (*node_tbl)["pin_position_y"].value_or<float>(24.0f);
+
                         Pin pin{};
                         
                         pin.panel_id = panel_id;
+                        pin.position_y = pin_position_y;
 
-                        if (variable.contains("midi") && variable.contains("in")) pin.type = PinType::MidiIn;
-                        else if (variable.contains("midi") && variable.contains("out")) pin.type = PinType::MidiOut;
-                        else if (variable.contains("audio") && variable.contains("in")) pin.type = PinType::AudioIn;
-                        else if (variable.contains("audio") && variable.contains("out")) pin.type = PinType::AudioOut;
-                        else LOG(Warning, "%s: unknown pin type \"%s\"", path, variable.c_str());
+                        if (pin_type == "midi") pin.type = PinType::Midi;
+                        else if (pin_type == "audio") pin.type = PinType::Audio;
+                        else LOG(Warning, "%s: unknown pin type \"%s\"", path, pin_type.c_str());
                         
-                        panel.pins[name] = pin;
+                        if (pin_direction.contains("in")) pin.direction = PinDirection::Input;
+                        else if (pin_direction.contains("out")) pin.direction = PinDirection::Output;
+                        else LOG(Warning, "%s: unknown pin direction \"%s\"", path, pin_type.c_str());
+                        
+                        panel.pins[pin_name] = pin;
                     } else {
                         LOG(Warning, "%s: unknown element type \"%s\"", path, (*type)->c_str());
                     }

@@ -4,6 +4,9 @@
 #include "panel_manager.hpp"
 #include "../graphics/renderer.hpp"
 namespace UI {
+    constexpr glm::vec2 pin_size(48.0f, 48.0f);
+    constexpr float clearance = 3.0f;
+
     void Panel::update(float delta_time, bool do_mouse_interact) {
         const bool should_snap = Input::key_held(Input::Key::LeftShift) || Input::key_held(Input::Key::RightShift);
 
@@ -195,6 +198,110 @@ namespace UI {
         UI::update_entities_input(this->scene, delta_time, do_mouse_interact);
     }
 
+    void draw_input_pin(glm::vec2 pin_tl, glm::vec2 pin_br) {
+        const glm::vec2 pin_center = (pin_tl + pin_br) * 0.5f;
+        const glm::vec2 pin_left = {pin_tl.x, pin_center.y};
+        const glm::vec2 pin_right = {pin_br.x, pin_center.y};
+
+        constexpr float outline_circle_width = 5.5f;
+        constexpr float circle_width = 4.0f;
+        constexpr float line_difference = outline_circle_width - circle_width;
+        
+        const glm::vec2 pin_half_circle_size = (pin_size * 0.5f) - clearance - (outline_circle_width);
+
+        // Stick outline
+        Gfx::draw_line_2d_pixels(pin_right, pin_center - glm::vec2(circle_width + clearance, 0), {
+            .color = Colors::WHITE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .line_width = outline_circle_width,
+            .enable_multisample = true,
+        });
+        
+        // Half-circle outline
+        Gfx::push_clip_rect(pin_tl - line_difference, pin_size + glm::vec2(line_difference, 2.0f * line_difference));
+        Gfx::draw_circle_2d_pixels(pin_left, pin_half_circle_size, {
+            .color = Colors::WHITE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .shape_outline_width = outline_circle_width,
+            .enable_multisample = true,
+        });
+        Gfx::pop_clip_rect();
+
+        // Stick
+        Gfx::draw_line_2d_pixels(pin_right, pin_center - glm::vec2(line_difference + circle_width + clearance, 0), {
+            .color = Colors::BLUE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .line_width = circle_width,
+            .enable_multisample = true,
+        });
+
+        // Half-circle
+        Gfx::push_clip_rect(pin_tl, pin_size);
+        Gfx::draw_circle_2d_pixels(pin_left, pin_half_circle_size, {
+            .color = Colors::BLUE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .shape_outline_width = circle_width,
+            .enable_multisample = true,
+        });
+        Gfx::pop_clip_rect();
+    }
+    
+    void draw_output_pin(glm::vec2 pin_tl, glm::vec2 pin_br) {
+        const glm::vec2 pin_center = (pin_tl + pin_br) * 0.5f;
+        const glm::vec2 pin_left = {pin_tl.x, pin_center.y};
+        const glm::vec2 pin_right = {pin_br.x, pin_center.y};
+
+        constexpr float outline_circle_width = 5.5f;
+        constexpr float circle_width = 4.0f;
+        constexpr float line_difference = outline_circle_width - circle_width;
+        
+        const glm::vec2 pin_half_circle_size = (pin_size * 0.5f) - clearance - (outline_circle_width);
+
+        // Stick outline
+        Gfx::draw_line_2d_pixels(pin_left, pin_right, {
+            .color = Colors::WHITE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .line_width = outline_circle_width,
+            .enable_multisample = true,
+        });
+        
+        // Half-circle outline
+        Gfx::push_clip_rect(pin_tl - line_difference, (pin_size * glm::vec2(0.7f, 1.0f)));
+        Gfx::draw_circle_2d_pixels(pin_center, pin_half_circle_size, {
+            .color = Colors::WHITE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .shape_outline_width = outline_circle_width,
+            .enable_multisample = true,
+        });
+        Gfx::pop_clip_rect();
+
+        // Stick
+        Gfx::draw_line_2d_pixels(pin_left + glm::vec2(line_difference, 0.0f), pin_right - glm::vec2(line_difference, 0.0f), {
+            .color = Colors::BLUE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .line_width = circle_width,
+            .enable_multisample = true,
+        });
+
+        // Half-circle
+        Gfx::push_clip_rect(pin_tl - line_difference, (pin_size * glm::vec2(0.7f, 1.0f)) - glm::vec2(line_difference, 2.0f * line_difference));
+        Gfx::draw_circle_2d_pixels(pin_center, pin_half_circle_size, {
+            .color = Colors::BLUE,
+            .depth = 0.0f,
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .shape_outline_width = circle_width,
+            .enable_multisample = true,
+        });
+        Gfx::pop_clip_rect();
+    }
+
     void Panel::render_window() {
         // Round to integer positions for rendering so there's no subpixel shenanigans
         auto temp_tl = this->top_left;
@@ -254,67 +361,30 @@ namespace UI {
         Gfx::pop_clip_rect();
 
         // Pins
-        constexpr glm::vec2 pin_size(48.0f, 48.0f);
-        constexpr float clearance = 4.0f;
-        float offset = window_bar_height + pin_size.y / 2;
-        constexpr float step = 64.0f;
-        
-        for (const auto& pin : this->pins) {
-            const glm::vec2 pin_tl = this->top_left + glm::vec2(this->size.x, offset) + glm::vec2(0.0f, clearance);
-            const glm::vec2 pin_br = pin_size + this->top_left + glm::vec2(this->size.x, offset) - glm::vec2(0.0f, clearance);
-            const glm::vec2 pin_center = (pin_tl + pin_br) * 0.5f;
-            const glm::vec2 pin_top = {pin_center.x, pin_tl.y};
-            const glm::vec2 pin_left = {pin_tl.x, pin_center.y};
-            const glm::vec2 pin_right = {pin_br.x, pin_center.y};
-            const glm::vec2 pin_half_circle_size = (pin_size / 2.0f) - clearance;
-
-            constexpr float outline_circle_width = 5.5f;
-            constexpr float circle_width = 4.0f;
-
-            // Stick outline
-            Gfx::draw_line_2d_pixels(pin_left, pin_center, {
-                .color = Colors::WHITE,
-                .depth = 0.0f,
-                .anchor_point = Gfx::AnchorPoint::TopLeft,
-                .line_width = outline_circle_width,
-                .enable_multisample = true,
-            });
-
-            Gfx::push_clip_rect({}, pin_center + pin_half_circle_size.y + outline_circle_width);
-
-            // Half-circle outline
-            Gfx::draw_circle_2d_pixels(pin_right, pin_half_circle_size, {
-                .color = Colors::WHITE,
-                .depth = 0.0f,
-                .anchor_point = Gfx::AnchorPoint::TopLeft,
-                .shape_outline_width = outline_circle_width,
-                .enable_multisample = true,
-            });
-
-            Gfx::pop_clip_rect();
-            Gfx::push_clip_rect({}, pin_center + pin_half_circle_size.y + circle_width);
-
-            // Half-circle
-            Gfx::draw_circle_2d_pixels(pin_right, pin_half_circle_size, {
-                .color = Colors::BLUE,
-                .depth = 0.0f,
-                .anchor_point = Gfx::AnchorPoint::TopLeft,
-                .shape_outline_width = circle_width,
-                .enable_multisample = true,
-            });
-
-            // Stick
-            Gfx::draw_line_2d_pixels(pin_left, pin_center, {
-                .color = Colors::BLUE,
-                .depth = 0.0f,
-                .anchor_point = Gfx::AnchorPoint::TopLeft,
-                .line_width = circle_width,
-                .enable_multisample = true,
-            });
-
-            Gfx::pop_clip_rect();
-
-            offset += step;
+        constexpr float noodle_handle_size = 16.0f;
+        for (const auto& [name, pin] : this->pins) {
+            if (pin.direction == PinDirection::Input) {
+                const glm::vec2 pin_tl = glm::vec2(0.0f, window_bar_height + 2) + this->top_left + glm::vec2(-pin_size.x, pin.position_y) + glm::vec2(0.0f, clearance);
+                const glm::vec2 pin_br = pin_size + pin_tl - glm::vec2(0.0f, clearance);
+                draw_input_pin(pin_tl, pin_br);
+            }
+            else if (pin.direction == PinDirection::Output) {
+                const glm::vec2 pin_tl = this->top_left + glm::vec2(this->size.x, window_bar_height + 2 + pin.position_y + clearance);
+                const glm::vec2 pin_br = pin_size + pin_tl - glm::vec2(0.0f, clearance);
+                draw_output_pin(pin_tl, pin_br);
+                // todo(noodle): desc: make actual noodle instead of ball
+                Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size), {
+                    .color = Colors::WHITE,
+                    .anchor_point = Gfx::AnchorPoint::TopLeft,
+                });
+                Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size - 2), {
+                    .color = Colors::BLUE,
+                    .anchor_point = Gfx::AnchorPoint::TopLeft
+                });
+            }
+            else {
+                LOG(Error, "Invalid pin direction");
+            }
         }
             
         this->top_left = temp_tl;
