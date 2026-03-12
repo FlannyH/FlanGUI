@@ -442,14 +442,14 @@ namespace Gfx {
     }
 
     void draw_circle_2d(glm::vec2 center, glm::vec2 size, DrawParams draw_params) {
-        draw_params.line_width = draw_params.shape_outline_width;
+        const glm::vec2 width_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * draw_params.shape_outline_width;
 
         if (draw_params.shape_outline_width > 0.0f) {
             for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
-                const glm::vec2 v0 = center + circle_lut[i + 0] * (size - draw_params.shape_outline_width);
-                const glm::vec2 v1 = center + circle_lut[i + 0] * (size + draw_params.shape_outline_width);
-                const glm::vec2 v3 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size - draw_params.shape_outline_width);
-                const glm::vec2 v2 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size + draw_params.shape_outline_width);
+                const glm::vec2 v0 = center + circle_lut[i + 0] * (size - width_2d);
+                const glm::vec2 v1 = center + circle_lut[i + 0] * (size + width_2d);
+                const glm::vec2 v3 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size - width_2d);
+                const glm::vec2 v2 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size + width_2d);
                 draw_quad_2d({v0}, {v1}, {v2}, {v3}, draw_params);
             }
         } else {
