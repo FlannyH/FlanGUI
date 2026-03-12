@@ -2,6 +2,9 @@
 #include "panel.hpp"
 
 namespace UI {
+    constexpr float NOODLE_SPEED_SLOW = 3.0f;
+    constexpr float NOODLE_SPEED_FAST = 256.0f;
+
     struct PanelCreateInfo {
         std::string title = "Yippee panels have names now :3";
         glm::vec2 top_left;
@@ -27,10 +30,12 @@ namespace UI {
     struct Pin {
         PinType type;
         PinDirection direction;
-        size_t panel_id;
-        size_t pin_id;// index into pin_ids_input, or pin_ids_output, depending on the pin type
+        size_t panel_id; // what panel this pin belongs to
+        std::string pin_id;// name index into Panel::pins
         float position_y; // what vertical position to attach the pin on the panel, relative to the top of the panel content
         glm::vec2 noodle_pos; // relative to panel top left
+        glm::vec2 noodle_target; // where does the noodle want to be
+        float noodle_speed = NOODLE_SPEED_SLOW;
         bool over_noodle;
         bool over_pin;
         bool being_dragged;
