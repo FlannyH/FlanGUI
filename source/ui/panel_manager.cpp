@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "panel.hpp"
 #include <cstdint>
+#include <set>
 
 #define TOML_EXCEPTIONS 0
 #include <toml++/toml.hpp>
@@ -13,12 +14,12 @@
 #define MAX_PANEL_COUNT 256
 
 namespace UI {
-    struct Connection {
+    struct Noodle {
         Pin source;
         Pin destination;
     };
 
-    std::vector<Connection> connections;
+    std::vector<Noodle> noodles;
 
     Panel panel_pool[MAX_PANEL_COUNT]{};
     bool panel_allocated[MAX_PANEL_COUNT] = {false};
@@ -282,15 +283,20 @@ namespace UI {
                         
                         if (pin_direction.contains("in")) {
                             pin.direction = PinDirection::Input; 
-                            pin.noodle_pos.x = -pin_size.x;
+                            pin.noodle_target.x = -pin_size.x;
                         }
                         else if (pin_direction.contains("out")) {
                             pin.direction = PinDirection::Output; 
-                            pin.noodle_pos.x = panel.size.x + pin_size.x;
+                            pin.noodle_target.x = panel.size.x + pin_size.x;
                         }
                         else LOG(Warning, "%s: unknown pin direction \"%s\"", path, pin_type.c_str());
 
-                        pin.noodle_pos.y = pin.position_y + window_bar_height + 2.0f;
+                        // todo(duplicate_code): desc: take another look at repeated noodle_target formula
+                        pin.noodle_target.y = pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f;
+
+                        pin.noodle_pos = pin.noodle_target;
+
+                        pin.pin_id = pin_name;
                         
                         panel.pins[pin_name] = pin;
                     } else {
@@ -345,43 +351,19 @@ namespace UI {
             panels_dirty           = true;
         }
 
-        // Return unconnected noodles to their pins
-        for (const auto& index: panel_order) {
-            auto& panel   = get_panel(index);
-            for (auto& [name, pin] : panel.pins) {
-                if (pin.direction != PinDirection::Output) continue;
-                if (!pin.being_dragged) {
-                    // nudge noodle towards pin if not connected to anything
-                    glm::vec2 target(
-                        panel.size.x + pin_size.x - outline_circle_width,
-                        pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f
-                    );
-                    glm::vec2 to_target = target - pin.noodle_pos;
-                    glm::vec2 dir = glm::normalize(to_target);
-                    const float return_speed = 1.0f;
-                    float curr_distance = glm::length(to_target);
-                    if (curr_distance > return_speed) {
-                        pin.noodle_pos += dir * return_speed;
-                    }
-                    else {
-                        pin.noodle_pos = target;
-                    }
-                }
-            }
-        }
-
-        // If the mouse is not over a window, check if it's over a noodle
-        if (panel_to_focus_on == SIZE_MAX && do_mouse_interact == true) {
+        // If the mouse is not over a window
+        if (panel_to_focus_on == SIZE_MAX) {
+            // Update pin/noodle hover status
             for (const auto& index: panel_order) {
                 auto& panel   = get_panel(index);
 
                 for (auto& [name, pin] : panel.pins) {
-                    if (pin.direction != PinDirection::Output) continue;
                     glm::vec2 tl(panel.top_left + window_bar_height + circle_width);
-                    tl.x = panel.top_left.x + panel.size.x;
-                    tl.y = panel.top_left.y + window_bar_height + circle_width + pin.position_y;
+                    if (pin.direction == PinDirection::Output) tl.x = panel.top_left.x + panel.size.x;
+                    else tl.x = panel.top_left.x - pin_size.x - noodle_handle_size / 2.0f;
+                    tl.y = panel.top_left.y + window_bar_height + circle_width + pin.position_y - noodle_handle_size / 2.0f;
 
-                    glm::vec2 br = tl + pin_size;
+                    glm::vec2 br = tl + pin_size + noodle_handle_size;
 
                     Hitbox pin_hitbox = {
                         .top_left = tl,
@@ -396,36 +378,113 @@ namespace UI {
                     };
 
                     pin.over_noodle = noodle_hitbox.intersects(Input::mouse_position_pixels());
+                }
+            }
 
-                    if (pin.being_dragged) {
-                        LOG(Info, "Moving panel \"%i\"'s pin \"%s\"'s noodle", index, name.c_str());
-                        pin.noodle_pos = Input::mouse_position_pixels() - pin.drag_mouse_offset;
-                        if (Input::mouse_button_released(Input::MouseButton::Left)) {
-                            LOG(Info, "Panel \"%i\"'s pin \"%s\"'s noodle end", index, name.c_str());
-                            pin.being_dragged = false;
+            // Dragging 
+            for (const auto& index: panel_order) {
+                auto& panel   = get_panel(index);
+
+                for (auto& [name, pin] : panel.pins) {
+                    if (pin.direction == PinDirection::Output) {
+                        if ((pin.direction == PinDirection::Output) && pin.being_dragged) {
+                            LOG(Info, "Moving panel \"%i\"'s pin \"%s\"'s noodle", index, name.c_str());
+                            pin.noodle_pos = Input::mouse_position_pixels() - pin.drag_mouse_offset;
+                            if (Input::mouse_button_released(Input::MouseButton::Left)) {
+                                LOG(Info, "Panel \"%i\"'s pin \"%s\"'s noodle end", index, name.c_str());
+                                pin.being_dragged = false;
+
+                                // Find target pin under mouse cursor
+                                bool found = false;
+                                for (const auto& index: panel_order) {
+                                    auto& panel   = get_panel(index);
+                                    for (auto& [other_name,  other_pin] : panel.pins) {
+                                        if (other_pin.direction != PinDirection::Input) continue;
+                                        if (!other_pin.over_pin) continue;
+                                        noodles.push_back({.source = pin, .destination = other_pin});
+                                        found = true;
+                                        goto after_find;
+                                    }
+                                }
+                                after_find:
+                                if (!found) {
+                                    for (size_t i = 0; i < noodles.size(); ++i) {
+                                        if (noodles[i].source.panel_id != pin.panel_id) continue;
+                                        if (noodles[i].source.pin_id != pin.pin_id) continue;
+                                        if (noodles[i].source.direction != pin.direction) continue;
+
+                                        auto& src_panel = get_panel(noodles[i].source.panel_id);
+                                        auto& dst_panel = get_panel(noodles[i].destination.panel_id);
+                                        auto& src_pin = src_panel.pins[noodles[i].source.pin_id];
+                                        
+                                        src_pin.noodle_target -= (dst_panel.top_left - src_panel.top_left);
+                                        if (src_pin.direction != PinDirection::Output) continue; 
+
+                                        src_pin.noodle_target.x = src_panel.size.x + pin_size.x;
+                                        src_pin.noodle_target.y = src_pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f;
+                                        src_pin.noodle_speed = NOODLE_SPEED_SLOW;
+                                        
+                                        noodles[i] = noodles[noodles.size() - 1];
+                                        noodles.resize(noodles.size() - 1);
+
+                                        break;
+                                    }
+                                }
+                            }
                         }
-                    }
 
-                    if (pin.over_noodle) {
-                        LOG(Info, "Hovering over panel \"%i\"'s pin \"%s\"'s noodle", index, name.c_str());
-                        Gfx::set_cursor_mode(Gfx::CursorMode::Hand);
+                        if ((pin.direction == PinDirection::Output) && pin.over_noodle) {
+                            LOG(Info, "Hovering over panel \"%i\"'s pin \"%s\"'s noodle", index, name.c_str());
+                            Gfx::set_cursor_mode(Gfx::CursorMode::Hand);
 
-                        if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
-                            LOG(Info, "Panel \"%i\"'s pin \"%s\"'s noodle being moved", index, name.c_str());
-                            pin.being_dragged = true;
-                            pin.drag_mouse_offset = Input::mouse_position_pixels() - pin.noodle_pos;
+                            if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
+                                LOG(Info, "Panel \"%i\"'s pin \"%s\"'s noodle being moved", index, name.c_str());
+                                pin.being_dragged = true;
+                                pin.drag_mouse_offset = Input::mouse_position_pixels() - pin.noodle_pos;
+                            }
+
+                            goto end_of_pin_manip;
                         }
 
-                        goto end_of_pin_manip;
-                    }
-
-                    if (pin.over_pin) {
-                        LOG(Info, "Hovering over panel \"%i\"'s pin \"%s\"", index, name.c_str());
-                        goto end_of_pin_manip;
+                        if (pin.over_pin) {
+                            LOG(Info, "Hovering over panel \"%i\"'s pin \"%s\"", index, name.c_str());
+                            goto end_of_pin_manip;
+                        }
                     }
                 }
             }
             end_of_pin_manip:
+        }
+
+        // Update noodle targets
+        for (auto& noodle : noodles) {
+            auto& src_panel = get_panel(noodle.source.panel_id);
+            auto& dst_panel = get_panel(noodle.destination.panel_id);
+            auto& src_pin = src_panel.pins[noodle.source.pin_id];
+            auto& dst_pin = dst_panel.pins[noodle.destination.pin_id];
+            src_pin.noodle_target = dst_pin.noodle_target + (dst_panel.top_left - src_panel.top_left);
+            src_pin.noodle_speed = NOODLE_SPEED_FAST;
+        }
+
+        // Return unconnected noodles to their pins
+        for (const auto& index: panel_order) {
+            auto& panel   = get_panel(index);
+            for (auto& [name, pin] : panel.pins) {
+                if (pin.direction != PinDirection::Output) continue;
+                if (!pin.being_dragged) {
+                    // Nudge noodle towards pin if not connected to anything
+                    glm::vec2 to_target = pin.noodle_target - pin.noodle_pos;
+                    glm::vec2 dir = glm::normalize(to_target);
+                    const float return_speed = pin.noodle_speed;
+                    float curr_distance = glm::length(to_target);
+                    if (curr_distance > return_speed) {
+                        pin.noodle_pos += dir * return_speed;
+                    }
+                    else {
+                        pin.noodle_pos = pin.noodle_target;
+                    }
+                }
+            }
         }
     }
 
@@ -442,7 +501,7 @@ namespace UI {
                 if (pin.direction != PinDirection::Output) continue;
 
                 Color line_color = Colors::BLUE;
-                if (pin.over_noodle || pin.over_noodle) {
+                if (pin.over_noodle) {
                     line_color = Colors::GREEN;
                 }
 
