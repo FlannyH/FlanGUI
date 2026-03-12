@@ -376,10 +376,12 @@ namespace UI {
                 Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size), {
                     .color = Colors::WHITE,
                     .anchor_point = Gfx::AnchorPoint::TopLeft,
+                    .enable_multisample = true,
                 });
                 Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size - 2), {
                     .color = Colors::BLUE,
-                    .anchor_point = Gfx::AnchorPoint::TopLeft
+                    .anchor_point = Gfx::AnchorPoint::TopLeft,
+                    .enable_multisample = true,
                 });
             }
             else {
