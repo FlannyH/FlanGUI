@@ -14,16 +14,22 @@ namespace UI {
 
     enum class PinType {
         None = 0,
-        MidiIn,
-        MidiOut,
-        AudioIn,
-        AudioOut,
+        Midi,
+        Audio,
+    };
+
+    enum class PinDirection {
+        None = 0,
+        Input,
+        Output,
     };
 
     struct Pin {
         PinType type;
+        PinDirection direction;
         size_t panel_id;
         size_t pin_id;// index into pin_ids_input, or pin_ids_output, depending on the pin type
+        float position_y; // what vertical position to attach the pin on the panel, relative to the top of the panel content
     };
 
     std::vector<Panel*>& get_panels_in_order();
