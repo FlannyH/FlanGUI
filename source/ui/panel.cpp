@@ -4,9 +4,6 @@
 #include "panel_manager.hpp"
 #include "../graphics/renderer.hpp"
 namespace UI {
-    constexpr glm::vec2 pin_size(48.0f, 48.0f);
-    constexpr float clearance = 3.0f;
-
     void Panel::update(float delta_time, bool do_mouse_interact) {
         const bool should_snap = Input::key_held(Input::Key::LeftShift) || Input::key_held(Input::Key::RightShift);
 
@@ -198,14 +195,10 @@ namespace UI {
         UI::update_entities_input(this->scene, delta_time, do_mouse_interact);
     }
 
-    void draw_input_pin(glm::vec2 pin_tl, glm::vec2 pin_br) {
+    void draw_input_pin(glm::vec2 pin_tl, glm::vec2 pin_br, bool hovered) {
         const glm::vec2 pin_center = (pin_tl + pin_br) * 0.5f;
         const glm::vec2 pin_left = {pin_tl.x, pin_center.y};
         const glm::vec2 pin_right = {pin_br.x, pin_center.y};
-
-        constexpr float outline_circle_width = 5.5f;
-        constexpr float circle_width = 4.0f;
-        constexpr float line_difference = outline_circle_width - circle_width;
         
         const glm::vec2 pin_half_circle_size = (pin_size * 0.5f) - clearance - (outline_circle_width);
 
@@ -231,7 +224,7 @@ namespace UI {
 
         // Stick
         Gfx::draw_line_2d_pixels(pin_right, pin_center - glm::vec2(line_difference + circle_width + clearance, 0), {
-            .color = Colors::BLUE,
+            .color = hovered ? Colors::GREEN : Colors::BLUE,
             .depth = 0.0f,
             .anchor_point = Gfx::AnchorPoint::TopLeft,
             .line_width = circle_width,
@@ -241,7 +234,7 @@ namespace UI {
         // Half-circle
         Gfx::push_clip_rect(pin_tl, pin_size);
         Gfx::draw_circle_2d_pixels(pin_left, pin_half_circle_size, {
-            .color = Colors::BLUE,
+            .color = hovered ? Colors::GREEN : Colors::BLUE,
             .depth = 0.0f,
             .anchor_point = Gfx::AnchorPoint::TopLeft,
             .shape_outline_width = circle_width,
@@ -250,7 +243,7 @@ namespace UI {
         Gfx::pop_clip_rect();
     }
     
-    void draw_output_pin(glm::vec2 pin_tl, glm::vec2 pin_br) {
+    void draw_output_pin(glm::vec2 pin_tl, glm::vec2 pin_br, bool hovered) {
         const glm::vec2 pin_center = (pin_tl + pin_br) * 0.5f;
         const glm::vec2 pin_left = {pin_tl.x, pin_center.y};
         const glm::vec2 pin_right = {pin_br.x, pin_center.y};
@@ -264,7 +257,7 @@ namespace UI {
         // Stick outline
         Gfx::draw_line_2d_pixels(pin_left, pin_right, {
             .color = Colors::WHITE,
-            .depth = 0.0f,
+            .depth = 0.1f,
             .anchor_point = Gfx::AnchorPoint::TopLeft,
             .line_width = outline_circle_width,
             .enable_multisample = true,
@@ -274,7 +267,7 @@ namespace UI {
         Gfx::push_clip_rect(pin_tl - line_difference, (pin_size * glm::vec2(0.7f, 1.0f)));
         Gfx::draw_circle_2d_pixels(pin_center, pin_half_circle_size, {
             .color = Colors::WHITE,
-            .depth = 0.0f,
+            .depth = 0.1f,
             .anchor_point = Gfx::AnchorPoint::TopLeft,
             .shape_outline_width = outline_circle_width,
             .enable_multisample = true,
@@ -283,7 +276,7 @@ namespace UI {
 
         // Stick
         Gfx::draw_line_2d_pixels(pin_left + glm::vec2(line_difference, 0.0f), pin_right - glm::vec2(line_difference, 0.0f), {
-            .color = Colors::BLUE,
+            .color = hovered ? Colors::GREEN : Colors::BLUE,
             .depth = 0.0f,
             .anchor_point = Gfx::AnchorPoint::TopLeft,
             .line_width = circle_width,
@@ -293,7 +286,7 @@ namespace UI {
         // Half-circle
         Gfx::push_clip_rect(pin_tl - line_difference, (pin_size * glm::vec2(0.7f, 1.0f)) - glm::vec2(line_difference, 2.0f * line_difference));
         Gfx::draw_circle_2d_pixels(pin_center, pin_half_circle_size, {
-            .color = Colors::BLUE,
+            .color = hovered ? Colors::GREEN : Colors::BLUE,
             .depth = 0.0f,
             .anchor_point = Gfx::AnchorPoint::TopLeft,
             .shape_outline_width = circle_width,
@@ -361,25 +354,25 @@ namespace UI {
         Gfx::pop_clip_rect();
 
         // Pins
-        constexpr float noodle_handle_size = 16.0f;
         for (const auto& [name, pin] : this->pins) {
             if (pin.direction == PinDirection::Input) {
                 const glm::vec2 pin_tl = glm::vec2(0.0f, window_bar_height + 2) + this->top_left + glm::vec2(-pin_size.x, pin.position_y) + glm::vec2(0.0f, clearance);
                 const glm::vec2 pin_br = pin_size + pin_tl - glm::vec2(0.0f, clearance);
-                draw_input_pin(pin_tl, pin_br);
+                draw_input_pin(pin_tl, pin_br, pin.over_pin);
             }
             else if (pin.direction == PinDirection::Output) {
                 const glm::vec2 pin_tl = this->top_left + glm::vec2(this->size.x, window_bar_height + 2 + pin.position_y + clearance);
                 const glm::vec2 pin_br = pin_size + pin_tl - glm::vec2(0.0f, clearance);
-                draw_output_pin(pin_tl, pin_br);
+                draw_output_pin(pin_tl, pin_br, pin.over_pin);
                 // todo(noodle): desc: make actual noodle instead of ball
-                Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size), {
+                // Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size), {
+                Gfx::draw_circle_2d_pixels(get_panel(pin.panel_id).top_left + pin.noodle_pos, glm::vec2(noodle_handle_size), {
                     .color = Colors::WHITE,
                     .anchor_point = Gfx::AnchorPoint::TopLeft,
                     .enable_multisample = true,
                 });
-                Gfx::draw_circle_2d_pixels(pin_tl + pin_size * glm::vec2(1.0f, 0.5f), glm::vec2(noodle_handle_size - 2), {
-                    .color = Colors::BLUE,
+                Gfx::draw_circle_2d_pixels(get_panel(pin.panel_id).top_left + pin.noodle_pos, glm::vec2(noodle_handle_size - 2), {
+                    .color = (pin.over_noodle) ? Colors::GREEN : Colors::BLUE,
                     .anchor_point = Gfx::AnchorPoint::TopLeft,
                     .enable_multisample = true,
                 });

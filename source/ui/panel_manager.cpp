@@ -1,6 +1,10 @@
 #include "panel_manager.hpp"
 #include "../graphics/renderer.hpp"
+#include "colors.hpp"
 #include "components.hpp"
+#include "glm/geometric.hpp"
+#include "input.hpp"
+#include "panel.hpp"
 #include <cstdint>
 
 #define TOML_EXCEPTIONS 0
@@ -276,9 +280,17 @@ namespace UI {
                         else if (pin_type == "audio") pin.type = PinType::Audio;
                         else LOG(Warning, "%s: unknown pin type \"%s\"", path, pin_type.c_str());
                         
-                        if (pin_direction.contains("in")) pin.direction = PinDirection::Input;
-                        else if (pin_direction.contains("out")) pin.direction = PinDirection::Output;
+                        if (pin_direction.contains("in")) {
+                            pin.direction = PinDirection::Input; 
+                            pin.noodle_pos.x = -pin_size.x;
+                        }
+                        else if (pin_direction.contains("out")) {
+                            pin.direction = PinDirection::Output; 
+                            pin.noodle_pos.x = panel.size.x + pin_size.x;
+                        }
                         else LOG(Warning, "%s: unknown pin direction \"%s\"", path, pin_type.c_str());
+
+                        pin.noodle_pos.y = pin.position_y + window_bar_height + 2.0f;
                         
                         panel.pins[pin_name] = pin;
                     } else {
@@ -300,7 +312,7 @@ namespace UI {
             const auto& panel = panel_pool[index];
             if (panel.being_dragged || panel.being_resized) {
                 panel_to_focus_on = index;
-                panel_pool[index].update(Gfx::get_delta_time(), do_mouse_interact);
+                get_panel(index).update(Gfx::get_delta_time(), do_mouse_interact);
             }
         }
 
@@ -332,11 +344,129 @@ namespace UI {
             prev_panel_to_focus_on = panel_to_focus_on;
             panels_dirty           = true;
         }
+
+        // Return unconnected noodles to their pins
+        for (const auto& index: panel_order) {
+            auto& panel   = get_panel(index);
+            for (auto& [name, pin] : panel.pins) {
+                if (pin.direction != PinDirection::Output) continue;
+                if (!pin.being_dragged) {
+                    // nudge noodle towards pin if not connected to anything
+                    glm::vec2 target(
+                        panel.size.x + pin_size.x - outline_circle_width,
+                        pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f
+                    );
+                    glm::vec2 to_target = target - pin.noodle_pos;
+                    glm::vec2 dir = glm::normalize(to_target);
+                    const float return_speed = 1.0f;
+                    float curr_distance = glm::length(to_target);
+                    if (curr_distance > return_speed) {
+                        pin.noodle_pos += dir * return_speed;
+                    }
+                    else {
+                        pin.noodle_pos = target;
+                    }
+                }
+            }
+        }
+
+        // If the mouse is not over a window, check if it's over a noodle
+        if (panel_to_focus_on == SIZE_MAX && do_mouse_interact == true) {
+            for (const auto& index: panel_order) {
+                auto& panel   = get_panel(index);
+
+                for (auto& [name, pin] : panel.pins) {
+                    if (pin.direction != PinDirection::Output) continue;
+                    glm::vec2 tl(panel.top_left + window_bar_height + circle_width);
+                    tl.x = panel.top_left.x + panel.size.x;
+                    tl.y = panel.top_left.y + window_bar_height + circle_width + pin.position_y;
+
+                    glm::vec2 br = tl + pin_size;
+
+                    Hitbox pin_hitbox = {
+                        .top_left = tl,
+                        .bottom_right = br,
+                    };
+
+                    pin.over_pin = pin_hitbox.intersects(Input::mouse_position_pixels());
+
+                    Hitbox noodle_hitbox = {
+                        .top_left = panel.top_left + pin.noodle_pos - noodle_handle_size,
+                        .bottom_right = panel.top_left + pin.noodle_pos + noodle_handle_size,
+                    };
+
+                    pin.over_noodle = noodle_hitbox.intersects(Input::mouse_position_pixels());
+
+                    if (pin.being_dragged) {
+                        LOG(Info, "Moving panel \"%i\"'s pin \"%s\"'s noodle", index, name.c_str());
+                        pin.noodle_pos = Input::mouse_position_pixels() - pin.drag_mouse_offset;
+                        if (Input::mouse_button_released(Input::MouseButton::Left)) {
+                            LOG(Info, "Panel \"%i\"'s pin \"%s\"'s noodle end", index, name.c_str());
+                            pin.being_dragged = false;
+                        }
+                    }
+
+                    if (pin.over_noodle) {
+                        LOG(Info, "Hovering over panel \"%i\"'s pin \"%s\"'s noodle", index, name.c_str());
+                        Gfx::set_cursor_mode(Gfx::CursorMode::Hand);
+
+                        if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
+                            LOG(Info, "Panel \"%i\"'s pin \"%s\"'s noodle being moved", index, name.c_str());
+                            pin.being_dragged = true;
+                            pin.drag_mouse_offset = Input::mouse_position_pixels() - pin.noodle_pos;
+                        }
+
+                        goto end_of_pin_manip;
+                    }
+
+                    if (pin.over_pin) {
+                        LOG(Info, "Hovering over panel \"%i\"'s pin \"%s\"", index, name.c_str());
+                        goto end_of_pin_manip;
+                    }
+                }
+            }
+            end_of_pin_manip:
+        }
     }
 
     void panel_render() {
+        // render panels
         for (size_t i = panel_order.size(); i-- > 0;) {
-            panel_pool[panel_order[i]].render_window();
+            get_panel(panel_order[i]).render_window();
+        }
+
+        // render noodle lines
+        for (const auto& index: panel_order) {
+            auto& panel   = get_panel(index);
+            for (auto& [name, pin] : panel.pins) {
+                if (pin.direction != PinDirection::Output) continue;
+
+                Color line_color = Colors::BLUE;
+                if (pin.over_noodle || pin.over_noodle) {
+                    line_color = Colors::GREEN;
+                }
+
+                glm::vec2 from(0.0f);
+                from.x = panel.size.x + pin_size.x - outline_circle_width;
+                from.y = pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f;
+                from += panel.top_left;
+                glm::vec2 to = panel.top_left + pin.noodle_pos;
+
+                Gfx::draw_line_2d_pixels(from, to, {
+                    .color = Colors::WHITE,
+                    .depth = 0.1f,
+                    .anchor_point = Gfx::AnchorPoint::TopLeft,
+                    .line_width = outline_circle_width,
+                    .enable_multisample = true,
+                });
+                Gfx::draw_line_2d_pixels(from, to, {
+                    .color = line_color,
+                    .depth = 0.0f,
+                    .anchor_point = Gfx::AnchorPoint::TopLeft,
+                    .line_width = circle_width,
+                    .enable_multisample = true,
+                });
+            }
         }
     }
 } // namespace UI

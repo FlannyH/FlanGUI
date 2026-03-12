@@ -40,4 +40,10 @@ namespace UI {
     constexpr float unmax_distance     = 32.0f;
     constexpr float resize_sensitivity = 16.0f;
     constexpr float double_click_time  = 0.3f;
+    constexpr glm::vec2 pin_size(48.0f, 48.0f);
+    constexpr float clearance = 3.0f;
+    constexpr float noodle_handle_size = 16.0f;
+    constexpr float outline_circle_width = 5.5f;
+    constexpr float circle_width = 4.0f;
+    constexpr float line_difference = outline_circle_width - circle_width;
 } // namespace UI
