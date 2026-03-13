@@ -14,11 +14,6 @@
 #define MAX_PANEL_COUNT 256
 
 namespace UI {
-    struct Noodle {
-        Pin source;
-        Pin destination;
-    };
-
     std::vector<Noodle> noodles;
 
     Panel panel_pool[MAX_PANEL_COUNT]{};
@@ -37,6 +32,10 @@ namespace UI {
             }
         }
         return panels;
+    }
+
+    const std::vector<Noodle> get_noodles() {
+        return noodles;
     }
 
     Panel& get_panel(const size_t id) { return panel_pool[id]; }
