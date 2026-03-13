@@ -41,8 +41,14 @@ namespace UI {
         bool being_dragged;
         glm::vec2 drag_mouse_offset;
     };
+    
+    struct Noodle {
+        Pin source;
+        Pin destination;
+    };
 
     std::vector<Panel*>& get_panels_in_order();
+    const std::vector<Noodle> get_noodles();
     size_t new_panel(const PanelCreateInfo& panel_create_info);
     size_t load_panel(const char* path, const glm::vec2 top_left = {0.0f, 0.0f});
     Panel& get_panel(const size_t id);
