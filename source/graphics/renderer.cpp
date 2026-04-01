@@ -20,6 +20,7 @@ namespace Gfx {
         RenderInfoType type = RenderInfoType::None;
  
         struct {
+            // todo(view_scale_offset): desc: store view and scale offset info in RenderInfo instead of setting it directly, for per-pass control
             glm::ivec2 scissor_rect_top_left = {0, 0};
             glm::ivec2 scissor_rect_size     = {99999, 99999};
             glm::ivec2 viewport_top_left     = {0, 0};
