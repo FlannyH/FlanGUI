@@ -8,7 +8,7 @@
 #include <memory>
 
 namespace Gfx {
-    enum class RenderAPI { OpenGL };
+    enum class RenderAPI { OpenGL, Software };
 
     enum class AnchorPoint { TopLeft = 0, Top, TopRight, Left, Center, Right, BottomLeft, Bottom, BottomRight };
 

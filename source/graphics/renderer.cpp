@@ -2,6 +2,7 @@
 #include "resource.hpp"
 #include "../log.hpp"
 #include "opengl/device_opengl.hpp"
+#include "software/device_software.hpp"
 
 #ifndef M_PI
 #include "../common.hpp"
@@ -105,6 +106,7 @@ namespace Gfx {
         // Create rendering device
         switch (api) {
         case RenderAPI::OpenGL: device = new DeviceOpenGL(window_width, window_height, title); break;
+        case RenderAPI::Software: device = new DeviceSoftware(window_width, window_height, title); break;
         default: return false;
         }
 

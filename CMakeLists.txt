@@ -17,6 +17,8 @@ set(src_root "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(all_src
     "${src_root}/graphics/opengl/device_opengl.cpp"
     "${src_root}/graphics/opengl/device_opengl.hpp"
+    "${src_root}/graphics/software/device_software.cpp"
+    "${src_root}/graphics/software/device_software.hpp"
     "${src_root}/graphics/device.cpp"
     "${src_root}/graphics/device.hpp"
     "${src_root}/graphics/renderer.cpp"
