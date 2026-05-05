@@ -639,7 +639,7 @@ namespace Gfx {
         }
     }
 
-    Input::Key glfw_to_key(int key) {
+    inline Input::Key glfw_to_key(int key) {
         // A to Z
         if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
             return (Input::Key)(key - GLFW_KEY_A + (int)Input::Key::A);
