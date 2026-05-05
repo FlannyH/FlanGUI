@@ -153,11 +153,12 @@ namespace Gfx {
 
     ResourceID DeviceSoftware::load_pipeline_raster(const char* shader_vs, const char* shader_ps) {
         // todo(device_software_load_pipeline_raster): desc: DeviceSoftware::load_pipeline_raster(...)
+        return ResourceID::invalid();
     }
 
     void DeviceSoftware::begin_raster_pass(const ResourceID raster_pipeline) {
         render_pass_active = raster_pipeline;
-        auto pipeline      = resources.at(raster_pipeline.id); 
+        // auto pipeline      = resources.at(raster_pipeline.id); 
         // todo(device_software_begin_raster_pass): desc: DeviceSoftware::begin_raster_pass(...)
     }
 
@@ -196,15 +197,16 @@ namespace Gfx {
 
     ResourceID DeviceSoftware::create_buffer(const std::string_view& name, const size_t size_bytes, const void* data) {
         // todo(device_software_create_buffer): desc: DeviceSoftware::create_buffer(...)
+        return ResourceID::invalid();
     }
 
     void DeviceSoftware::upload_data_to_buffer(
         const ResourceID buffer, const size_t offset_bytes, const size_t size_bytes, const void* data) {
-        auto buffer_resource = (BufferResource*)(resources.at(buffer.id));
-        if ((offset_bytes + size_bytes) > buffer_resource->size) {
-            LOG(Warning, "GPU buffer data upload overflow! Data will not be copied.");
-            return;
-        }
+        // auto buffer_resource = (BufferResource*)(resources.at(buffer.id));
+        // if ((offset_bytes + size_bytes) > buffer_resource->size) {
+        //     LOG(Warning, "GPU buffer data upload overflow! Data will not be copied.");
+        //     return;
+        // }
         // todo(device_software_upload_data_to_buffer): desc: DeviceSoftware::upload_data_to_buffer(...)
     }
 
