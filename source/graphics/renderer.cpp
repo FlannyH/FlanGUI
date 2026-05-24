@@ -21,11 +21,12 @@ namespace Gfx {
         RenderInfoType type = RenderInfoType::None;
  
         struct {
-            // todo(view_scale_offset): desc: store view and scale offset info in RenderInfo instead of setting it directly, for per-pass control
             glm::ivec2 scissor_rect_top_left = {0, 0};
             glm::ivec2 scissor_rect_size     = {99999, 99999};
             glm::ivec2 viewport_top_left     = {0, 0};
             glm::ivec2 viewport_size         = {99999, 99999};
+            glm::vec2 view_offset            = {0, 0};
+            glm::vec2 view_scale             = {1, 1};
             ResourceID target_framebuffer    = ResourceID::invalid();
             bool scissor_rect_set            = false;
             bool viewport_set                = false;
@@ -222,6 +223,8 @@ namespace Gfx {
                     device->set_render_target(render_info.persistent.target_framebuffer);
                     device->set_viewport(render_info.persistent.viewport_top_left, render_info.persistent.viewport_size);
                     device->set_clip_rect(render_info.persistent.scissor_rect_top_left, render_info.persistent.scissor_rect_size);
+                    device->set_view_offset(render_info.persistent.view_offset);
+                    device->set_view_scale(render_info.persistent.view_scale);
                     device->set_multisample(render_info.raster.enable_multisample);
                     device->execute_raster(render_info.raster.vertices_to_render.size());
                     device->set_multisample(false);
@@ -383,13 +386,24 @@ namespace Gfx {
         }
     }
     
-    // todo(view_render_info): desc: make the view offset part of RenderInfo, not some separate state
     void set_view_offset_2d(glm::vec2 offset) {
-        device->set_view_offset(offset);
+        bool enqueue = false;
+        if (curr_render_info.type == RenderInfoType::Raster) {
+            if (offset != curr_render_info.persistent.view_offset) enqueue = true;
+            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        }
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.persistent.view_offset = offset;
     }
 
     void set_view_scale_2d(glm::vec2 scale) {
-        device->set_view_scale(scale);
+        bool enqueue = false;
+        if (curr_render_info.type == RenderInfoType::Raster) {
+            if (scale != curr_render_info.persistent.view_scale) enqueue = true;
+            enqueue &= !curr_render_info.raster.vertices_to_render.empty();
+        }
+        fetch_render_info(RenderInfoType::Raster, enqueue);
+        curr_render_info.persistent.view_scale = scale;
     }
     
     void set_view_offset_2d_pixels(glm::vec2 offset) {
