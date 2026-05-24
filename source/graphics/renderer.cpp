@@ -219,17 +219,20 @@ namespace Gfx {
                     device->upload_data_to_buffer(
                         render_queue_2d_gpu_buffer, 0, sizeof(Vertex2D) * render_info.raster.vertices_to_render.size(),
                         render_info.raster.vertices_to_render.data());
+                    device->set_view_offset(render_info.persistent.view_offset);
+                    device->set_view_scale(render_info.persistent.view_scale);
+
                     device->begin_raster_pass(pipeline_2d);
+
                     device->bind_resources({{render_queue_2d_gpu_buffer, 0}});
                     device->bind_texture(0, render_info.raster.texture_to_bind);
                     device->set_render_target(render_info.persistent.target_framebuffer);
                     device->set_viewport(render_info.persistent.viewport_top_left, render_info.persistent.viewport_size);
                     device->set_clip_rect(render_info.persistent.scissor_rect_top_left, render_info.persistent.scissor_rect_size);
-                    device->set_view_offset(render_info.persistent.view_offset);
-                    device->set_view_scale(render_info.persistent.view_scale);
                     device->set_multisample(render_info.raster.enable_multisample);
                     device->execute_raster(render_info.raster.vertices_to_render.size());
                     device->set_multisample(false);
+                    
                     device->end_raster_pass();
                     continue;
                 }
