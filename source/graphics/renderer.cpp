@@ -159,7 +159,7 @@ namespace Gfx {
     }
 
     void clear_framebuffer(const ClearParams& clear_params) {
-        fetch_render_info(RenderInfoType::Clear, true);
+        fetch_render_info(RenderInfoType::Clear, false);
         curr_render_info.type                 = RenderInfoType::Clear;
         curr_render_info.clear.color          = clear_params.color;
         curr_render_info.clear.depth          = clear_params.depth;
