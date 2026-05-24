@@ -204,12 +204,14 @@ namespace Gfx {
                 }
                 if (render_info.type == RenderInfoType::Raster) {
 #if DEBUG_RENDER_QUEUE                    
-                    LOG(Debug, "RenderInfo: Raster: %4i triangles, texture %3i, fb %2i, viewport (size %4ix%4i at (%4i, %4i)), clip pos (size %4ix%4i at (%4i, %4i))", 
+                    LOG(Debug, "RenderInfo: Raster: %4i triangles, texture %3i, fb %2i, viewport (size %4ix%4i at (%4i, %4i)), clip pos (size %4ix%4i at (%4i, %4i)), offset (%3f, %3f), scale (%2.1f, %2.1f)", 
                         render_info.raster.vertices_to_render.size() / 3, render_info.raster.texture_to_bind.id, render_info.persistent.target_framebuffer, 
                         render_info.persistent.viewport_size.x, render_info.persistent.viewport_size.y, 
                         render_info.persistent.viewport_top_left.x, render_info.persistent.viewport_top_left.y, 
                         render_info.persistent.scissor_rect_size.x, render_info.persistent.scissor_rect_size.y,
-                        render_info.persistent.scissor_rect_top_left.x, render_info.persistent.scissor_rect_top_left.y
+                        render_info.persistent.scissor_rect_top_left.x, render_info.persistent.scissor_rect_top_left.y,
+                        render_info.persistent.view_offset.x, render_info.persistent.view_offset.y,
+                        render_info.persistent.view_scale.x, render_info.persistent.view_scale.y
                     );
 #endif                    
                     if (render_info.raster.vertices_to_render.empty()) continue;
