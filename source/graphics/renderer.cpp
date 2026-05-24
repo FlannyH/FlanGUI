@@ -409,11 +409,11 @@ namespace Gfx {
     }
     
     void set_view_offset_2d_pixels(glm::vec2 offset) {
-        device->set_view_offset(offset / get_viewport_size());
+        set_view_offset_2d(offset / get_viewport_size());
     }
 
     void set_view_scale_2d_pixels(glm::vec2 scale) {
-        device->set_view_scale(scale / get_viewport_size());
+        set_view_scale_2d(scale);
     }
 
     void draw_line_2d_pixels(glm::vec2 v0, glm::vec2 v1, DrawParams draw_params) {
