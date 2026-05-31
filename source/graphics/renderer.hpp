@@ -99,19 +99,17 @@ namespace Gfx {
     void draw_rectangle_2d(glm::vec2 top_left, glm::vec2 bottom_right, const DrawParams& draw_params = {});
     void set_view_offset_2d(glm::vec2 offset);
     void set_view_scale_2d(glm::vec2 scale);
+    glm::vec2 anchor_offset(glm::vec2 top_left, Gfx::AnchorPoint anchor);
+    void draw_circle_2d(glm::vec2 center, glm::vec2 size, DrawParams draw_params = {});
 
     // 2D rendering in pixel coordinates
     void draw_line_2d_pixels(glm::vec2 v0, glm::vec2 v1, DrawParams draw_params = {});
     void draw_triangle_2d_pixels(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, const DrawParams& draw_params = {});
-    void
-    draw_quad_2d_pixels(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, PosTexcoord v3, const DrawParams& draw_params = {});
+    void draw_quad_2d_pixels(PosTexcoord v0, PosTexcoord v1, PosTexcoord v2, PosTexcoord v3, const DrawParams& draw_params = {});
     void draw_rectangle_2d_pixels(glm::vec2 top_left, glm::vec2 bottom_right, DrawParams draw_params = {});
     void set_view_offset_2d_pixels(glm::vec2 offset);
     void set_view_scale_2d_pixels(glm::vec2 scale);
-    glm::vec2 anchor_offset(glm::vec2 top_left, Gfx::AnchorPoint anchor);
-    glm::vec2 anchor_offset_pixels(
-        glm::vec2 top_left, Gfx::AnchorPoint anchor,
-        glm::vec2 anchor_size = glm::vec2(0.0f, 0.0f)); // if anchor_size == 0, it uses the window size
+    glm::vec2 anchor_offset_pixels(glm::vec2 top_left, Gfx::AnchorPoint anchor, glm::vec2 anchor_size = glm::vec2(0.0f, 0.0f)); // if anchor_size == 0, it uses the window size
     void draw_circle_2d_pixels(glm::vec2 center, glm::vec2 size, DrawParams draw_params = {});
     void blit_pixels(ResourceID src, ResourceID dest, glm::ivec2 size, glm::ivec2 dest_tl = {0, 0}, glm::ivec2 src_tl = {0, 0});
 

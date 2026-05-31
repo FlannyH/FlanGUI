@@ -126,6 +126,7 @@ namespace Gfx {
         for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
             float angle   = ((float)i / (float)CIRCLE_LUT_SIZE) * 2.0f * (float)M_PI;
             circle_lut[i] = glm::vec2(cos(angle), sin(angle));
+            // circle_lut[i] = glm::normalize(glm::vec2(cos(angle), sin(angle)));
         }
 
         if (api == RenderAPI::OpenGL) LOG(Info, "Renderer initialized (OpenGL)");
@@ -316,16 +317,25 @@ namespace Gfx {
 
     void draw_line_2d(glm::vec2 a, glm::vec2 b, const DrawParams& draw_params) {
         // todo (fix_line_drawing): desc: fix line drawing 1px minimum width
-        const float line_width = std::max(draw_params.line_width, (0.5f / device->get_view_scale().y) / window_size.y);
+        const float min_width = (0.5f / device->get_view_scale().y) / window_size.y;
+        const float line_width = std::max(draw_params.line_width, min_width);
 
         // Figure out rectangle to draw
+        const glm::vec2 aspect                  = glm::vec2(1.0f / aspect_ratio, 1.0f);
         const glm::vec2 direction               = b - a;
-        const glm::vec2 perpendicular           = glm::normalize(glm::vec2(direction.y, -direction.x));
-        const glm::vec2 corrected_perpendicular = (perpendicular * line_width) * glm::vec2(1.0f / aspect_ratio, 1.0f);
+        const glm::vec2 perpendicular           = glm::normalize(aspect * glm::vec2(direction.y, -direction.x));
+        const glm::vec2 corrected_perpendicular = (perpendicular * line_width) * aspect;
         const glm::vec2 v0                      = a - corrected_perpendicular;
         const glm::vec2 v1                      = a + corrected_perpendicular;
         const glm::vec2 v2                      = b + corrected_perpendicular;
         const glm::vec2 v3                      = b - corrected_perpendicular;
+
+        if (draw_params.line_width >= min_width) {
+            auto draw_params_copy = draw_params;
+            // draw_params_copy.shape_outline_width = 0.001f;
+            draw_circle_2d(a, glm::vec2(line_width), draw_params_copy);
+            draw_circle_2d(b, glm::vec2(line_width), draw_params_copy);
+        }
         draw_quad_2d({v0}, {v1}, {v2}, {v3}, draw_params);
     }
 
@@ -465,19 +475,20 @@ namespace Gfx {
 
     void draw_circle_2d(glm::vec2 center, glm::vec2 size, DrawParams draw_params) {
         const glm::vec2 width_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * draw_params.shape_outline_width;
+        const glm::vec2 size_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * size;
 
         if (draw_params.shape_outline_width > 0.0f) {
             for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
-                const glm::vec2 v0 = center + circle_lut[i + 0] * (size - width_2d);
-                const glm::vec2 v1 = center + circle_lut[i + 0] * (size + width_2d);
-                const glm::vec2 v3 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size - width_2d);
-                const glm::vec2 v2 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size + width_2d);
+                const glm::vec2 v0 = center + circle_lut[i + 0] * (size_2d - width_2d);
+                const glm::vec2 v1 = center + circle_lut[i + 0] * (size_2d);
+                const glm::vec2 v3 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size_2d - width_2d);
+                const glm::vec2 v2 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size_2d);
                 draw_quad_2d({v0}, {v1}, {v2}, {v3}, draw_params);
             }
         } else {
             for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
                 draw_triangle_2d(
-                    {center + circle_lut[i + 0] * size}, {center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * size}, {center},
+                    {center + circle_lut[i + 0] * size_2d}, {center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * size_2d}, {center},
                     draw_params);
             }
         }
@@ -485,7 +496,7 @@ namespace Gfx {
 
     void draw_circle_2d_pixels(glm::vec2 center, glm::vec2 size, DrawParams draw_params) {
         draw_params.shape_outline_width /= get_viewport_size().y;
-        draw_circle_2d(center / get_viewport_size(), size / get_viewport_size(), draw_params);
+        draw_circle_2d(center / get_viewport_size(), size / get_viewport_size().y, draw_params);
     }
 
     void blit_pixels(ResourceID src, ResourceID dest, glm::ivec2 size, glm::ivec2 dest_tl, glm::ivec2 src_tl) {
