@@ -360,7 +360,6 @@ namespace Gfx {
     }
 
     ResourceID DeviceSoftware::load_pipeline_raster() {
-        // todo(device_software_load_pipeline_raster): desc: DeviceSoftware::load_pipeline_raster()
         return ResourceID::invalid();
     }
 } // namespace Gfx
