@@ -424,7 +424,7 @@ namespace Gfx {
     }
     
     void set_view_offset_2d_pixels(glm::vec2 offset) {
-        set_view_offset_2d(offset / get_viewport_size().y);
+        set_view_offset_2d(offset / get_viewport_size());
     }
 
     void draw_line_2d_pixels(glm::vec2 v0, glm::vec2 v1, DrawParams draw_params) {
