@@ -14,7 +14,7 @@
 
 #include <array>
 
-#define CIRCLE_LUT_SIZE 24
+#define CIRCLE_LUT_SIZE 256
 
 namespace Gfx {
     struct RenderInfo {
@@ -475,18 +475,50 @@ namespace Gfx {
         const glm::vec2 width_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * draw_params.shape_outline_width;
         const glm::vec2 size_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * size;
 
+        // Are we on screen? if not, cull
+        glm::vec2 trans_pos = (center + get_view_offset_2d()) * get_view_scale_2d();
+        glm::vec2 size_2d_scaled = size_2d * get_view_scale_2d();
+
+        if ((trans_pos.x - size_2d_scaled.x) < -1.0f) return;
+        if ((trans_pos.y - size_2d_scaled.y) < -1.0f) return;
+        if ((trans_pos.x + size_2d_scaled.x) > 1.0f) return;
+        if ((trans_pos.y + size_2d_scaled.y) > 1.0f) return;
+
+        float step = (2.0f) / sqrtf((size_2d.y * get_view_scale_2d().y));
+        if ((CIRCLE_LUT_SIZE / step) < 5.0f) step = CIRCLE_LUT_SIZE / 5.0f;
+
+        // Outline
         if (draw_params.shape_outline_width > 0.0f) {
-            for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
-                const glm::vec2 v0 = center + circle_lut[i + 0] * (size_2d - width_2d);
-                const glm::vec2 v1 = center + circle_lut[i + 0] * (size_2d);
-                const glm::vec2 v3 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size_2d - width_2d);
-                const glm::vec2 v2 = center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * (size_2d);
+            size_t i = 0;
+            size_t i_prev = 0;
+            float fi = 0.0f;
+            while (i < CIRCLE_LUT_SIZE) {
+                fi += step;
+                i_prev = i;
+                i = (size_t)fi;
+                size_t i_actual = i;
+                if (i_actual > CIRCLE_LUT_SIZE) i_actual = CIRCLE_LUT_SIZE;
+                const glm::vec2 v0 = center + circle_lut[i_prev % CIRCLE_LUT_SIZE] * (size_2d - width_2d);
+                const glm::vec2 v1 = center + circle_lut[i_prev % CIRCLE_LUT_SIZE] * (size_2d);
+                const glm::vec2 v3 = center + circle_lut[i_actual % CIRCLE_LUT_SIZE] * (size_2d - width_2d);
+                const glm::vec2 v2 = center + circle_lut[i_actual % CIRCLE_LUT_SIZE] * (size_2d);
                 draw_quad_2d({v0}, {v1}, {v2}, {v3}, draw_params);
             }
-        } else {
-            for (size_t i = 0; i < CIRCLE_LUT_SIZE; ++i) {
+        } 
+
+        // Filled
+        else {
+            size_t i = 0;
+            size_t i_prev = 0;
+            float fi = 0.0f;
+            while (i < CIRCLE_LUT_SIZE) {
+                fi += step;
+                i_prev = i;
+                i = (size_t)fi;
+                size_t i_actual = i;
+                if (i_actual > CIRCLE_LUT_SIZE) i_actual = CIRCLE_LUT_SIZE;
                 draw_triangle_2d(
-                    {center + circle_lut[i + 0] * size_2d}, {center + circle_lut[(i + 1) % CIRCLE_LUT_SIZE] * size_2d}, {center},
+                    {center + circle_lut[i_prev % CIRCLE_LUT_SIZE] * size_2d}, {center + circle_lut[i_actual % CIRCLE_LUT_SIZE] * size_2d}, {center},
                     draw_params);
             }
         }
