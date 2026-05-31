@@ -47,6 +47,7 @@ namespace Gfx {
 
         // Rendering pipelines
         virtual ResourceID load_pipeline_raster(const char* shader_vs, const char* shader_ps) = 0;
+        virtual ResourceID load_pipeline_raster()                                             = 0;
         virtual void begin_raster_pass(const ResourceID raster_pipeline)                      = 0;
         virtual void end_raster_pass()                                                        = 0;
         virtual void execute_raster(const size_t n_vertices, const int vertex_offset = 0)     = 0;
