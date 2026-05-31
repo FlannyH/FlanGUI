@@ -30,6 +30,7 @@ namespace Gfx {
         float get_delta_time() override;
 
         // Rendering pipelines
+        ResourceID load_pipeline_raster() override;
         ResourceID load_pipeline_raster(const char* shader_vs, const char* shader_ps) override;
         void begin_raster_pass(const ResourceID raster_pipeline) override;
         void end_raster_pass() override;

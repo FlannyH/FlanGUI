@@ -117,7 +117,7 @@ namespace Gfx {
             device->create_buffer("Render queue 2D GPU buffer", sizeof(Vertex2D) * render_queue_max_vertex_count);
 
         // Create common shader pipelines
-        pipeline_2d = device->load_pipeline_raster("assets/shaders/2d.vsh", "assets/shaders/2d.psh");
+        pipeline_2d = device->load_pipeline_raster();
 
         // Load font
         font = load_font("assets/textures/font.png");
@@ -187,6 +187,8 @@ namespace Gfx {
         set_viewport({0, 0}, {w, h});
         push_clip_rect({0, 0}, {w, h});
         clear_framebuffer({});
+        set_view_offset_2d({0, 0});
+        set_view_scale_2d({1, 1});
     }
 
     void end_frame() {
@@ -422,11 +424,7 @@ namespace Gfx {
     }
     
     void set_view_offset_2d_pixels(glm::vec2 offset) {
-        set_view_offset_2d(offset / get_viewport_size());
-    }
-
-    void set_view_scale_2d_pixels(glm::vec2 scale) {
-        set_view_scale_2d(scale);
+        set_view_offset_2d(offset / get_viewport_size().y);
     }
 
     void draw_line_2d_pixels(glm::vec2 v0, glm::vec2 v1, DrawParams draw_params) {
@@ -741,4 +739,16 @@ namespace Gfx {
         });
     }
     void resize_texture(ResourceID id, glm::ivec3 new_resolution) { device->resize_texture(id, new_resolution); }
+
+    glm::vec2 get_view_scale_2d() {
+        return curr_render_info.persistent.view_scale;
+    }
+
+    glm::vec2 get_view_offset_2d() {
+        return curr_render_info.persistent.view_offset;
+    }
+
+    glm::vec2 get_view_offset_2d_pixels() {
+        return get_view_offset_2d() * get_viewport_size().y;
+    }
 } // namespace Gfx

@@ -14,6 +14,61 @@
 #include "device_opengl.hpp"
 
 namespace Gfx {
+    static const char shader_vertex[] = "                            \n\
+        #version 430 core                                            \n\
+        precision mediump float;                                     \n\
+                                                                     \n\
+        struct Vertex2D {                                            \n\
+            vec3 position;                                           \n\
+            vec4 color;                                              \n\
+            vec2 texcoords;                                          \n\
+            uint texture_id;                                         \n\
+        };                                                           \n\
+                                                                     \n\
+        layout(std430, binding = 0)                                  \n\
+        buffer VertexBuffer                                          \n\
+        {                                                            \n\
+            Vertex2D vertices[];                                     \n\
+        };                                                           \n\
+                                                                     \n\
+        out vec4 out_color;                                          \n\
+        out vec2 out_texcoord;                                       \n\
+                                                                     \n\
+        uniform vec2 offset;                                         \n\
+        uniform vec2 scale;                                          \n\
+                                                                     \n\
+        void main() {                                                \n\
+            gl_Position = vec4(vertices[gl_VertexID].position, 1.0); \n\
+            gl_Position.xy -= 1.0;                                   \n\
+            gl_Position.xy += offset * 2.0f;                         \n\
+            gl_Position.xy *= scale;                                 \n\
+            gl_Position.y *= -1;                                     \n\
+            out_color = vertices[gl_VertexID].color;                 \n\
+            out_texcoord = vertices[gl_VertexID].texcoords;          \n\
+        }                                                            \n\
+    ";
+    
+    static const char shader_pixel[] = "                 \n\
+        #version 430 core                                \n\
+        precision mediump float;                         \n\
+                                                         \n\
+        in vec4 out_color;                               \n\
+        in vec2 out_texcoord;                            \n\
+        out vec4 frag_color;                             \n\
+                                                         \n\
+        uniform layout (binding = 0) sampler2D tex;      \n\
+        uniform layout (location = 0) int texture_bound; \n\
+                                                         \n\
+        void main() {                                    \n\
+            frag_color = out_color;                      \n\
+            if (texture_bound == 1) {                    \n\
+                vec4 tex = texture(tex, out_texcoord);   \n\
+                if (tex.a < 0.01f) discard;              \n\
+                frag_color *= tex;                       \n\
+            }                                            \n\
+        }                                                \n\
+    ";
+
     static void glfw_error_callback(int error, const char* description) { LOG(Error, "Error %i: %s", error, description); }
 
     static void opengl_debug_callback(
@@ -73,11 +128,45 @@ namespace Gfx {
             source, source_str, type, type_str, id, severity, severity_str, message);
     }
 
-    bool load_shader_part(const char* path, const ShaderType type, const gl::GLuint* program) {
+    bool load_shader_part_from_text(const char* shader_data, const size_t shader_size, const ShaderType type, const gl::GLuint* program, const char* path = nullptr) {
         const gl::GLenum shader_types[5] = {
             gl::GL_INVALID_ENUM, gl::GL_VERTEX_SHADER, gl::GL_FRAGMENT_SHADER, gl::GL_GEOMETRY_SHADER, gl::GL_COMPUTE_SHADER,
         };
 
+        // Create shader on GPU
+        const gl::GLenum type_to_create = shader_types[(int)type];
+        const gl::GLuint shader         = gl::glCreateShader(type_to_create);
+
+        // Compile shader source
+        const gl::GLint shader_size_gl = (gl::GLint)shader_size;
+        gl::glShaderSource(shader, 1, (const gl::GLchar* const*)&shader_data, &shader_size_gl);
+        gl::glCompileShader(shader);
+
+        // Error checking
+        gl::GLboolean result = gl::GL_FALSE;
+        int log_length;
+        gl::glGetShaderiv(shader, gl::GL_COMPILE_STATUS, &result);
+        gl::glGetShaderiv(shader, gl::GL_INFO_LOG_LENGTH, &log_length);
+        std::unique_ptr<char[]> error = std::make_unique<char[]>(log_length);
+        gl::glGetShaderInfoLog(shader, log_length, NULL, &error[0]);
+        if (log_length > 0) {
+            // Log error
+            if (path) {
+                LOG(Error, "File '%s':\n\n%s\n", path, &error[0]);\
+            }
+            else {
+                LOG(Error, "Internal shader:\n\n%s\n", path, &error[0]);\
+            }
+            return false;
+        }
+
+        // Attach to program
+        gl::glAttachShader(*program, shader);
+
+        return true;
+    }
+
+    bool load_shader_part(const char* path, const ShaderType type, const gl::GLuint* program) {
         // Read shader source file
         size_t shader_size = 0;
         char* shader_data  = NULL;
@@ -100,32 +189,7 @@ namespace Gfx {
         shader_data[shader_size] = 0;
         file.read(shader_data, shader_size);
 
-        // Create shader on GPU
-        const gl::GLenum type_to_create = shader_types[(int)type];
-        const gl::GLuint shader         = gl::glCreateShader(type_to_create);
-
-        // Compile shader source
-        const gl::GLint shader_size_gl = (gl::GLint)shader_size;
-        gl::glShaderSource(shader, 1, (const gl::GLchar* const*)&shader_data, &shader_size_gl);
-        gl::glCompileShader(shader);
-
-        // Error checking
-        gl::GLboolean result = gl::GL_FALSE;
-        int log_length;
-        gl::glGetShaderiv(shader, gl::GL_COMPILE_STATUS, &result);
-        gl::glGetShaderiv(shader, gl::GL_INFO_LOG_LENGTH, &log_length);
-        std::unique_ptr<char[]> frag_shader_error = std::make_unique<char[]>(log_length);
-        gl::glGetShaderInfoLog(shader, log_length, NULL, &frag_shader_error[0]);
-        if (log_length > 0) {
-            // Log error
-            LOG(Error, "File '%s':\n\n%s\n", path, &frag_shader_error[0]);
-            return false;
-        }
-
-        // Attach to program
-        gl::glAttachShader(*program, shader);
-
-        return true;
+        return load_shader_part_from_text(shader_data, shader_size, type, program);
     }
 
     DeviceOpenGL::DeviceOpenGL(int width, int height, const char* window_title) {
@@ -762,7 +826,7 @@ namespace Gfx {
     }
 
     glm::vec2 DeviceOpenGL::get_view_scale() {
-      return view_scale;
+        return view_scale;
     }
 
     void DeviceOpenGL::set_multisample(bool enable) {
@@ -770,5 +834,37 @@ namespace Gfx {
             gl::glEnable(gl::GLenum::GL_MULTISAMPLE);
         else
             gl::glDisable(gl::GLenum::GL_MULTISAMPLE);
+    }
+
+    ResourceID DeviceOpenGL::load_pipeline_raster() {
+        // Create program
+        const gl::GLuint shader_gpu = gl::glCreateProgram();
+
+        // Load shader parts
+        const bool vert_loaded = load_shader_part_from_text(shader_vertex, sizeof(shader_vertex), ShaderType::Vertex, &shader_gpu);
+        const bool frag_loaded = load_shader_part_from_text(shader_pixel, sizeof(shader_pixel), ShaderType::Pixel, &shader_gpu);
+
+        // Make sure it worked
+        if (vert_loaded == false) LOG(Error, "Failed to load default vertex shader!");
+        if (frag_loaded == false) LOG(Error, "Failed to load default pixel shader!");
+
+        // Link
+        gl::glLinkProgram(shader_gpu);
+        int success;
+        gl::glGetProgramiv(shader_gpu, gl::GL_LINK_STATUS, &success);
+        if (!success) {
+            char info_log[512] = {0};
+            int length         = 0;
+            gl::glGetProgramInfoLog(shader_gpu, 512, NULL, info_log);
+            LOG(Error, "Failed to link program%s%s", (length > 0) ? ": " : "", (length > 0) ? info_log : "");
+        }
+
+        // Keep track of its resource ID
+        auto resource_id_pair                = allocate_resource_slot(ResourceType::Pipeline);
+        PipelineResource* resource           = new PipelineResource();
+        resource->base.gpu_handle32          = shader_gpu;
+        resources.at(resource_id_pair.id.id) = (Resource*)resource;
+
+        return resource_id_pair.id;
     }
 } // namespace Gfx

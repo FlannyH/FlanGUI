@@ -31,6 +31,7 @@ namespace Gfx {
 
         // Rendering pipelines
         ResourceID load_pipeline_raster(const char* shader_vs, const char* shader_ps) override;
+        ResourceID load_pipeline_raster() override;
         void begin_raster_pass(const ResourceID raster_pipeline) override;
         void end_raster_pass() override;
         void execute_raster(const size_t n_vertices, const int vertex_offset) override;
