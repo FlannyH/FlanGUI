@@ -3,11 +3,7 @@ project(flangui LANGUAGES CXX)
 
 # Options
 option(FLANGUI_DEBUG_RENDER_QUEUE "Print render info entries when sending draw calls" OFF)
-
-if(FLANGUI_DEBUG_RENDER_QUEUE)
-	add_definitions(-DDEBUG_RENDER_QUEUE)
-	add_definitions(-DDEBUG)
-endif()
+option(USE_RENDERDOC "Enable workarounds to make RenderDoc work on Wayland-based setups" ON)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -56,6 +52,21 @@ target_include_directories(flangui
         "${src_root}/graphics"
         "${src_root}/ui"
 )
+
+if(FLANGUI_DEBUG_RENDER_QUEUE)
+	target_compile_definitions(flangui PRIVATE DEBUG_RENDER_QUEUE)
+	target_compile_definitions(flangui PRIVATE DEBUG)
+endif()
+
+if (USE_RENDERDOC)
+    target_compile_definitions(flangui PRIVATE USE_RENDERDOC=1)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_compile_definitions(flangui PRIVATE PLATFORM_WINDOWS=1)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_compile_definitions(flangui PRIVATE PLATFORM_LINUX=1)
+endif()
 
 if(MSVC)
     target_compile_options(flangui PRIVATE /W4 /permissive-)
