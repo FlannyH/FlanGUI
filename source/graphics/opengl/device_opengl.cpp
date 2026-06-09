@@ -193,6 +193,12 @@ namespace Gfx {
     }
 
     DeviceOpenGL::DeviceOpenGL(int width, int height, const char* window_title) {
+#if PLATFORM_LINUX && USE_RENDERDOC
+        // workaround to make renderdoc capture things properly on my wayland setup
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+        LOG(Info, "RenderDoc workaround: trying to run in X11 mode");
+#endif
+
         if (!glfwInit()) {
             LOG(Fatal, "Failed to initialize GLFW");
             exit(1);
