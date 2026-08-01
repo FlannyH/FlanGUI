@@ -355,6 +355,10 @@ namespace Gfx {
       return view_scale;
     }
 
+    std::vector<PixelRGBA_8> DeviceSoftware::get_window_framebuffer() {
+        return std::vector<PixelRGBA_8>();
+    }
+
     void DeviceSoftware::set_multisample(bool enable) {
         // todo(device_software_set_multisample): desc: DeviceSoftware::set_multisample(...)
     }

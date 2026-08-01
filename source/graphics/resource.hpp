@@ -39,6 +39,24 @@ namespace Gfx {
         RGBA_8,
     };
 
+    struct PixelRG_8 {
+        uint8_t r = 0;
+        uint8_t g = 0;
+    };
+
+    struct PixelRGB_8 {
+        uint8_t r = 0;
+        uint8_t g = 0;
+        uint8_t b = 0;
+    };
+
+    struct PixelRGBA_8 {
+        uint8_t r = 0;
+        uint8_t g = 0;
+        uint8_t b = 0;
+        uint8_t a = 0;
+    };
+
     enum class ShaderType { Invalid = 0, Vertex, Pixel, Geometry, Compute };
 
     struct Vertex2D {
