@@ -88,6 +88,7 @@ namespace Gfx {
     void set_render_target(ResourceID render_target = ResourceID::invalid());
     void clear_framebuffer(const ClearParams& clear_params);
     void save_screenshot(const std::string& path);
+    void set_vsync(int interval);
 
     // Rendering
     void begin_frame();

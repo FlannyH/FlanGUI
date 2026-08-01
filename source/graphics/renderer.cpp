@@ -794,4 +794,8 @@ namespace Gfx {
 
         stbi_write_png(path.c_str(), width, height, 4, pixels.data(), width * static_cast<int>(sizeof(PixelRGBA_8)));
     }
+
+    void set_vsync(int interval) {
+        device->set_vsync(interval);
+    }
 } // namespace Gfx

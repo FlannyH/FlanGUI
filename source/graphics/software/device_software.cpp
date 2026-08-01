@@ -366,4 +366,8 @@ namespace Gfx {
     ResourceID DeviceSoftware::load_pipeline_raster() {
         return ResourceID::invalid();
     }
+
+    void DeviceSoftware::set_vsync(int interval) {
+        // todo(device_software_set_vsync): desc: DeviceSoftware::set_vsync(...)
+    }
 } // namespace Gfx
