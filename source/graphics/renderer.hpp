@@ -45,13 +45,13 @@ namespace Gfx {
     };
 
     struct PosTexcoord {
-        glm::vec2 pos;
+        glm::vec2 pos = {0.0f, 0.0f};
         glm::vec2 texcoord = {0.0f, 0.0f};
     };
 
     struct PixelRect {
-        glm::i16vec2 top_left;
-        glm::i16vec2 size;
+        glm::i16vec2 top_left = {0, 0};
+        glm::i16vec2 size = {0, 0};
     };
 
     struct Font {
@@ -67,7 +67,7 @@ namespace Gfx {
         Transform transform{};
         AnchorPoint position_anchor = AnchorPoint::Center;
         AnchorPoint text_anchor = AnchorPoint::TopLeft;
-        Color color;
+        Color color = {1.0f, 1.0f, 1.0f, 1.0f};
     };
 
     // Renderer is responsible for creating a window, rendering graphics, and handling input
