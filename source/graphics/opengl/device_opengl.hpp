@@ -39,6 +39,7 @@ namespace Gfx {
         void set_view_offset(const glm::vec2& offset) override;
         void set_view_scale(const glm::vec2& scale) override;
         glm::vec2 get_view_scale() override;
+        std::vector<PixelRGBA_8> get_window_framebuffer() override;
 
         // Resource management
         Resource* get_resource(const ResourceID id) override;

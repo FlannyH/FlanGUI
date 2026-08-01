@@ -87,6 +87,7 @@ namespace Gfx {
     void set_cursor_mode(CursorMode cursor_mode);
     void set_render_target(ResourceID render_target = ResourceID::invalid());
     void clear_framebuffer(const ClearParams& clear_params);
+    void save_screenshot(const std::string& path);
 
     // Rendering
     void begin_frame();

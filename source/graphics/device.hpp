@@ -44,6 +44,7 @@ namespace Gfx {
         virtual void set_multisample(bool enable)                                                                         = 0;
         virtual float get_delta_time()                                                                                    = 0;
         virtual glm::vec2 get_view_scale()                                                                                = 0;
+        virtual std::vector<PixelRGBA_8> get_window_framebuffer()                                                         = 0;
 
         // Rendering pipelines
         virtual ResourceID load_pipeline_raster(const char* shader_vs, const char* shader_ps) = 0;

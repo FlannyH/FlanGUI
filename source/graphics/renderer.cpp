@@ -12,6 +12,9 @@
 #include <stb_image.h>
 #include <glm/geometric.hpp>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
 #include <array>
 
 #define CIRCLE_LUT_SIZE 256
@@ -782,5 +785,13 @@ namespace Gfx {
 
     glm::vec2 get_view_offset_2d_pixels() {
         return get_view_offset_2d() * get_viewport_size().y;
+    }
+
+    void save_screenshot(const std::string &path) {
+        std::vector<PixelRGBA_8> pixels = device->get_window_framebuffer();
+        int width = static_cast<int>(window_size.x);
+        int height = static_cast<int>(window_size.y);
+
+        stbi_write_png(path.c_str(), width, height, 4, pixels.data(), width * static_cast<int>(sizeof(PixelRGBA_8)));
     }
 } // namespace Gfx

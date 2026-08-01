@@ -6,6 +6,7 @@
 #include <glbinding/gl/gl.h>
 #include <GLFW/glfw3.h>
 #include <cassert>
+#include <algorithm>
 #include <fstream>
 #include <memory>
 #include "../../common.hpp"
@@ -833,6 +834,33 @@ namespace Gfx {
 
     glm::vec2 DeviceOpenGL::get_view_scale() {
         return view_scale;
+    }
+
+    std::vector<PixelRGBA_8> DeviceOpenGL::get_window_framebuffer() {
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(window, &width, &height);
+
+        // Save the currently bound framebuffer so we can restore it
+        gl::GLint current_fbo = 0;
+        gl::glGetIntegerv(gl::GL_FRAMEBUFFER_BINDING, &current_fbo);
+
+        // Bind the default window framebuffer to guarantee we read the right thing
+        gl::glBindFramebuffer(gl::GL_FRAMEBUFFER, 0);
+
+        std::vector<PixelRGBA_8> pixels(static_cast<size_t>(width) * height);
+        gl::glReadPixels(0, 0, width, height, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE, pixels.data());
+
+        // Restore whatever framebuffer was active before
+        gl::glBindFramebuffer(gl::GL_FRAMEBUFFER, current_fbo);
+
+        // OpenGL reads bottom-to-top; flip vertically so row 0 is the top
+        size_t row_size = static_cast<size_t>(width);
+        for (size_t i = 0; i < static_cast<size_t>(height) / 2; ++i) {
+            std::swap_ranges(pixels.begin() + i * row_size, pixels.begin() + (i + 1) * row_size,
+                             pixels.begin() + (static_cast<size_t>(height) - 1 - i) * row_size);
+        }
+
+        return pixels;
     }
 
     void DeviceOpenGL::set_multisample(bool enable) {
