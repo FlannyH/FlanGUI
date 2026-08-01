@@ -901,4 +901,8 @@ namespace Gfx {
 
         return resource_id_pair.id;
     }
+
+    void DeviceOpenGL::set_vsync(int interval) {
+        glfwSwapInterval(interval);
+    }
 } // namespace Gfx
