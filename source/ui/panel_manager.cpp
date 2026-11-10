@@ -6,7 +6,6 @@
 #include "input.hpp"
 #include "panel.hpp"
 #include <cstdint>
-#include <set>
 
 #define TOML_EXCEPTIONS 0
 #include <toml++/toml.hpp>
@@ -64,7 +63,7 @@ namespace UI {
             }
         }
         // // todo(out_of_ui_panels): desc: figure out how to resolve the "out of ui panels" error properly
-        // LOG((Error, "Ran out of UI panels!"); 
+        // LOG((Error, "Ran out of UI panels!");
         return 0;
     }
 
@@ -267,25 +266,25 @@ namespace UI {
                             item_height, list_height);
                     } else if (*type == "pin") {
                         auto pin_type        = (*node_tbl)["pin_type"].value_or<std::string>("");
-                        auto pin_direction        = (*node_tbl)["pin_direction"].value_or<std::string>("");
+                        auto pin_direction   = (*node_tbl)["pin_direction"].value_or<std::string>("");
                         auto pin_name        = (*node_tbl)["pin_name"].value_or<std::string>("");
-                        auto pin_position_y        = (*node_tbl)["pin_position_y"].value_or<float>(24.0f);
+                        auto pin_position_y  = (*node_tbl)["pin_position_y"].value_or<float>(24.0f);
 
                         Pin pin{};
-                        
+
                         pin.panel_id = panel_id;
                         pin.position_y = pin_position_y;
 
                         if (pin_type == "midi") pin.type = PinType::Midi;
                         else if (pin_type == "audio") pin.type = PinType::Audio;
                         else LOG(Warning, "%s: unknown pin type \"%s\"", path, pin_type.c_str());
-                        
+
                         if (pin_direction.contains("in")) {
-                            pin.direction = PinDirection::Input; 
+                            pin.direction = PinDirection::Input;
                             pin.noodle_target.x = -pin_size.x;
                         }
                         else if (pin_direction.contains("out")) {
-                            pin.direction = PinDirection::Output; 
+                            pin.direction = PinDirection::Output;
                             pin.noodle_target.x = panel.size.x + pin_size.x;
                         }
                         else LOG(Warning, "%s: unknown pin direction \"%s\"", path, pin_type.c_str());
@@ -296,7 +295,7 @@ namespace UI {
                         pin.noodle_pos = pin.noodle_target;
 
                         pin.pin_id = pin_name;
-                        
+
                         panel.pins[pin_name] = pin;
                     } else {
                         LOG(Warning, "%s: unknown element type \"%s\"", path, (*type)->c_str());
@@ -380,7 +379,7 @@ namespace UI {
                 }
             }
 
-            // Dragging 
+            // Dragging
             for (const auto& index: panel_order) {
                 auto& panel   = get_panel(index);
 
@@ -397,9 +396,28 @@ namespace UI {
                                 bool found = false;
                                 for (const auto& index: panel_order) {
                                     auto& panel   = get_panel(index);
+                                    // remove old noodle
+                                    int i = 0;
+                                    while (1) {
+                                        if (i >= (int)noodles.size()) break;
+                                        if (noodles[i].source.panel_id != pin.panel_id) { ++i; continue; };
+                                        if (noodles[i].source.pin_id != pin.pin_id) { ++i; continue; };
+
+                                        auto& src_panel = get_panel(noodles[i].source.panel_id);
+                                        auto& src_pin = src_panel.pins[noodles[i].source.pin_id];
+
+                                        src_pin.noodle_target.x = src_panel.size.x + pin_size.x;
+                                        src_pin.noodle_target.y = src_pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f;
+                                        src_pin.noodle_speed = NOODLE_SPEED_SLOW;
+
+                                        noodles.erase(noodles.begin() + i);
+                                    }
+
+                                    // add new noodle
                                     for (auto& [other_name,  other_pin] : panel.pins) {
                                         if (other_pin.direction != PinDirection::Input) continue;
                                         if (!other_pin.over_pin) continue;
+                                        if (other_pin.panel_id == pin.panel_id) continue;
                                         noodles.push_back({.source = pin, .destination = other_pin});
                                         found = true;
                                         goto after_find;
@@ -415,14 +433,14 @@ namespace UI {
                                         auto& src_panel = get_panel(noodles[i].source.panel_id);
                                         auto& dst_panel = get_panel(noodles[i].destination.panel_id);
                                         auto& src_pin = src_panel.pins[noodles[i].source.pin_id];
-                                        
+
                                         src_pin.noodle_target -= (dst_panel.top_left - src_panel.top_left);
-                                        if (src_pin.direction != PinDirection::Output) continue; 
+                                        if (src_pin.direction != PinDirection::Output) continue;
 
                                         src_pin.noodle_target.x = src_panel.size.x + pin_size.x;
                                         src_pin.noodle_target.y = src_pin.position_y + window_bar_height + circle_width + pin_size.y / 2.0f;
                                         src_pin.noodle_speed = NOODLE_SPEED_SLOW;
-                                        
+
                                         noodles[i] = noodles[noodles.size() - 1];
                                         noodles.resize(noodles.size() - 1);
 
