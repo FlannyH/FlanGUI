@@ -33,15 +33,15 @@ namespace UI {
         size_t panel_id; // what panel this pin belongs to
         std::string pin_id;// name index into Panel::pins
         float position_y; // what vertical position to attach the pin on the panel, relative to the top of the panel content
-        glm::vec2 noodle_pos; // relative to panel top left
-        glm::vec2 noodle_target; // where does the noodle want to be
+        glm::vec2 drag_noodle_pos; // relative to panel top left
+        glm::vec2 drag_noodle_target; // where does the noodle want to be
         float noodle_speed = NOODLE_SPEED_SLOW;
         bool over_noodle;
         bool over_pin;
         bool being_dragged;
         glm::vec2 drag_mouse_offset;
     };
-    
+
     struct Noodle {
         Pin source;
         Pin destination;

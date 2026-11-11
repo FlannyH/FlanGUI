@@ -46,4 +46,9 @@ namespace UI {
     constexpr float outline_circle_width = 5.5f;
     constexpr float circle_width = 4.0f;
     constexpr float line_difference = outline_circle_width - circle_width;
+
+    // graphics helpers
+    void draw_noodle(glm::vec2 from, glm::vec2 to, bool hovered);
+    void draw_noodle_end(glm::vec2 tl, bool hovered);
+    void draw_output_pin(glm::vec2 pin_tl, glm::vec2 pin_br, bool hovered);
 } // namespace UI
