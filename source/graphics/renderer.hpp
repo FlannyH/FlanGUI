@@ -104,7 +104,11 @@ namespace Gfx {
     void draw_rectangle_2d(glm::vec2 top_left, glm::vec2 bottom_right, const DrawParams& draw_params = {});
     void set_view_offset_2d(glm::vec2 offset);
     void set_view_scale_2d(glm::vec2 scale);
+    glm::vec2 get_view_offset_2d();
+    glm::vec2 get_view_scale_2d();
     glm::vec2 anchor_offset(glm::vec2 top_left, Gfx::AnchorPoint anchor);
+    glm::vec2 apply_view_offset_scale(glm::vec2 vec);
+    glm::vec2 pixels_to_scene_space(glm::vec2 vec);
     void draw_circle_2d(glm::vec2 center, glm::vec2 size, DrawParams draw_params = {});
 
     // 2D rendering in pixel coordinates

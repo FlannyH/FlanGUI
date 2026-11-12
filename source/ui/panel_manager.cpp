@@ -317,7 +317,6 @@ namespace UI {
         // If a panel is being dragged or resized, that's the one we should focus on. Otherwise, update whatever panels are
         // below the mouse
         size_t panel_to_focus_on = SIZE_MAX;
-        size_t panel_hovered_over = SIZE_MAX;
         bool do_mouse_interact   = true;
 
         for (const auto& index: panel_order) {
@@ -333,8 +332,9 @@ namespace UI {
                 const auto& panel   = panel_pool[index];
                 Hitbox panel_hitbox = {
                     .top_left     = panel.top_left - glm::vec2(resize_sensitivity),
-                    .bottom_right = panel.top_left + panel.size + glm::vec2(resize_sensitivity)};
-                if (panel_hitbox.intersects(Input::mouse_position_pixels())) {
+                    .bottom_right = panel.top_left + panel.size + glm::vec2(resize_sensitivity)
+                };
+                if (panel_hitbox.intersects(Gfx::pixels_to_scene_space(Input::mouse_position_pixels()))) {
                     panel_pool[index].update(Gfx::get_delta_time(), do_mouse_interact);
                     do_mouse_interact = false;
                     if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
@@ -375,13 +375,13 @@ namespace UI {
                         .top_left = tl,
                         .bottom_right = br,
                     };
-                    pin.over_pin = pin_hitbox.intersects(Input::mouse_position_pixels());
+                    pin.over_pin = pin_hitbox.intersects(Gfx::pixels_to_scene_space(Input::mouse_position_pixels()));
 
                     Hitbox noodle_hitbox = {
                         .top_left = panel.top_left + pin.drag_noodle_pos - noodle_handle_size,
                         .bottom_right = panel.top_left + pin.drag_noodle_pos + noodle_handle_size,
                     };
-                    pin.over_noodle = noodle_hitbox.intersects(Input::mouse_position_pixels());
+                    pin.over_noodle = noodle_hitbox.intersects(Gfx::pixels_to_scene_space(Input::mouse_position_pixels()));
                 }
             }
 
@@ -392,7 +392,7 @@ namespace UI {
                 for (auto& [name, pin] : panel.pins) {
                     if (pin.direction == PinDirection::Output) {
                         if ((pin.direction == PinDirection::Output) && pin.being_dragged) {
-                            pin.drag_noodle_pos = Input::mouse_position_pixels() - pin.drag_mouse_offset;
+                            pin.drag_noodle_pos = Gfx::pixels_to_scene_space(Input::mouse_position_pixels()) - pin.drag_mouse_offset;
                             if (Input::mouse_button_released(Input::MouseButton::Left)) {
                                 pin.being_dragged = false;
 
@@ -440,7 +440,7 @@ namespace UI {
 
                             if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
                                 pin.being_dragged = true;
-                                pin.drag_mouse_offset = Input::mouse_position_pixels() - pin.drag_noodle_pos;
+                                pin.drag_mouse_offset = Gfx::pixels_to_scene_space(Input::mouse_position_pixels()) - pin.drag_noodle_pos;
                             }
 
                             goto end_of_pin_manip;

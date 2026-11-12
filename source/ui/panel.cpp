@@ -8,8 +8,8 @@ namespace UI {
         const bool should_snap = Input::key_held(Input::Key::LeftShift) || Input::key_held(Input::Key::RightShift);
 
         // Window dragging
-        const glm::vec2 mouse_pos      = Input::mouse_position_pixels();
-        const glm::vec2 mouse_movement = Input::mouse_movement_pixels();
+        const glm::vec2 mouse_pos      = Gfx::pixels_to_scene_space(Input::mouse_position_pixels());
+        const glm::vec2 mouse_movement = Gfx::pixels_to_scene_space(Input::mouse_movement_pixels());
 
         const Hitbox title_bar = {
             .top_left = this->top_left, .bottom_right = this->top_left + glm::vec2(this->size.x, window_bar_height)};
@@ -215,7 +215,7 @@ namespace UI {
         });
 
         // Half-circle outline
-        Gfx::push_clip_rect(pin_tl - line_difference, pin_size + glm::vec2(line_difference, 2.0f * line_difference));
+        Gfx::push_clip_rect(Gfx::pixels_to_scene_space(pin_tl - line_difference), Gfx::pixels_to_scene_space(pin_size + glm::vec2(line_difference, 2.0f * line_difference)));
         Gfx::draw_circle_2d_pixels(pin_left, pin_half_circle_size, {
             .color = Colors::WHITE,
             .depth = 0.05f,
@@ -229,7 +229,7 @@ namespace UI {
         draw_noodle(pin_right, pin_center - glm::vec2(line_difference + circle_width + clearance, 0), hovered);
 
         // Half-circle
-        Gfx::push_clip_rect(pin_tl, pin_size);
+        Gfx::push_clip_rect(Gfx::pixels_to_scene_space(pin_tl), Gfx::pixels_to_scene_space(pin_size));
         Gfx::draw_circle_2d_pixels(pin_left, pin_half_circle_size, {
             .color = hovered ? Colors::GREEN : Colors::BLUE,
             .depth = 0.05f,
@@ -291,7 +291,7 @@ namespace UI {
         });
 
         // Half-circle outline
-        Gfx::push_clip_rect(pin_tl - line_difference, (pin_size * glm::vec2(0.7f, 1.0f)));
+        Gfx::push_clip_rect(Gfx::pixels_to_scene_space(pin_tl - line_difference), Gfx::pixels_to_scene_space(pin_size * glm::vec2(0.7f, 1.0f)));
         Gfx::draw_circle_2d_pixels(pin_center, pin_half_circle_size, {
             .color = Colors::WHITE,
             .depth = 0.1f,
@@ -330,6 +330,10 @@ namespace UI {
         // Render content to separate render target
         const glm::ivec2 content_size = {(int)this->size.x - 2, (int)(this->size.y - window_bar_height - 2)};
         Gfx::set_render_target(this->content_render_target);
+        const glm::vec2 view_offset_store = Gfx::get_view_offset_2d();
+        const glm::vec2 view_scale_store = Gfx::get_view_scale_2d();
+        Gfx::set_view_offset_2d({0.0f, 0.0f});
+        Gfx::set_view_scale_2d({1.0f, 1.0f});
         Gfx::set_viewport({0, 0}, content_size);
         Gfx::push_clip_rect({0, 0}, content_size);
         Gfx::clear_framebuffer({});
@@ -341,17 +345,20 @@ namespace UI {
                 .shape_outline_width = 0.0f,
             });
         UI::update_entities_render(this->scene);
+        Gfx::set_view_offset_2d(view_offset_store);
+        Gfx::set_view_scale_2d(view_scale_store);
         Gfx::pop_clip_rect();
 
         Gfx::set_render_target();
         Gfx::set_viewport({0, 0}, Gfx::get_window_size());
-        Gfx::push_clip_rect(this->top_left, this->size);
 
         // Title bar background
         Gfx::draw_rectangle_2d_pixels(
             this->top_left, this->top_left + glm::vec2(this->size.x, window_bar_height + 2),
             Gfx::DrawParams{
-                .color = Colors::DARK_BLUE, .anchor_point = Gfx::AnchorPoint::TopLeft, .shape_outline_width = 0.0f});
+                .color = Colors::DARK_BLUE, .anchor_point = Gfx::AnchorPoint::TopLeft, .shape_outline_width = 0.0f
+            }
+        );
 
         // Panel name
         Gfx::draw_text_pixels(
@@ -373,12 +380,21 @@ namespace UI {
             this->top_left + glm::vec2(0, window_bar_height), this->top_left + this->size,
             Gfx::DrawParams{.anchor_point = Gfx::AnchorPoint::TopLeft, .shape_outline_width = 2.0f});
 
-        // Content
-        Gfx::blit_pixels(
-            this->content_render_target, Gfx::ResourceID::invalid(), this->size - glm::vec2(2, window_bar_height + 2),
-            {this->top_left + glm::vec2(1, 1 + window_bar_height)}, {0, 0});
+        // Content - this used to be a Gfx::blit_pixels, but after adding zooming and dragging the viewport it needs to be scaled
+        const glm::vec2 content_tl = {
+            this->top_left.x + 1,
+            this->top_left.y + this->size.y + 3
+        };
+        const glm::vec2 content_br = {
+            content_tl.x + this->size.x - 2,
+            this->top_left.y + 1 + window_bar_height,
+        };
 
-        Gfx::pop_clip_rect();
+        Gfx::draw_rectangle_2d_pixels(content_tl, content_br, {
+            .anchor_point = Gfx::AnchorPoint::TopLeft,
+            .texture = this->content_render_target,
+            .enable_multisample = true,
+        });
 
         // Pins
         for (const auto& [name, pin] : this->pins) {

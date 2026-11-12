@@ -142,6 +142,7 @@ namespace UI {
         float current_scroll_position = 0.0f;
         bool is_list_open             = false;
         int current_selected_index    = 0;
+        int hovered_index             = 0;
     };
 
     // todo(checkbox): desc: checkbox
@@ -395,7 +396,7 @@ namespace UI {
                     // If all parts of the range are a whole number, print as if it were an integer
                     if (range)
                         text->text = std::format(L"{:.{}f}", val, range->visual_decimal_places);
-                    else 
+                    else
                         text->text = std::format(L"{:.2f}", val);
                 }
             }
@@ -666,7 +667,7 @@ namespace UI {
                  .shape_outline_width = 1.0f});
 
             const wchar_t* text_string = L"<no item selected>";
-            if (combobox->current_selected_index != -1) {
+            if ((combobox->current_selected_index != -1) && (combobox->current_selected_index < (int)combobox->list_items.size())) {
                 text_string = combobox->list_items[combobox->current_selected_index].c_str();
             }
 
@@ -700,9 +701,6 @@ namespace UI {
                 });
 
             // Render the list if necessary
-            Gfx::push_clip_rect(
-                top_left + glm::vec2(0, combobox->button_height),
-                bottom_right - top_left - glm::vec2(0, combobox->button_height));
             size_t start_index = 0 + static_cast<size_t>(combobox->current_scroll_position / combobox->item_height);
             size_t end_index   = start_index + static_cast<size_t>(combobox->list_height / combobox->item_height) + 1;
             if (fabsf(transform->bottom_right.y - transform->top_left.y - combobox->button_height) > 1.0f) {
@@ -711,9 +709,7 @@ namespace UI {
                     if (i >= combobox->list_items.size()) break;
 
                     // Get transform information
-                    box_top_left = top_left + glm::vec2(
-                                                  0, combobox->button_height + (combobox->item_height * static_cast<float>(i)) -
-                                                         combobox->current_scroll_position);
+                    box_top_left = top_left + glm::vec2(0, combobox->button_height + (combobox->item_height * static_cast<float>(i)) - combobox->current_scroll_position);
                     box_bottom_right = glm::vec2(bottom_right.x, box_top_left.y + combobox->item_height);
                     text_offset      = {8, combobox->item_height / 2.0f};
 
@@ -725,23 +721,12 @@ namespace UI {
                         color *= 0.8f;
                     }
 
-                    // Create a hitbox for the current item
-                    Hitbox curr_item_hitbox{box_top_left + scene.top_left, box_bottom_right + scene.top_left};
-
                     // If the mouse is over it, change the color based on the mouse
-                    if (curr_item_hitbox.intersects(Input::mouse_position_pixels())) {
+                    if (combobox->hovered_index == i) {
                         if (multi_hitbox->click_states[1] == ClickState::hover) {
                             color *= 0.9f;
-                        } else if (
-                            multi_hitbox->click_states[1] == ClickState::click &&
-                            Input::mouse_button_pressed(Input::MouseButton::Left)) {
-                            // This is a bit cursed, but it'll have to do
-                            // We will actually update the combobox selected index in the rendering code, since we already do a
-                            // ton of logic here to figure out where the mouse is anyway
+                        } else if (multi_hitbox->click_states[1] == ClickState::click) {
                             color *= 0.7f;
-                            combobox->current_selected_index = static_cast<int>(i);
-                            combobox->is_list_open           = false;
-                            value->set<double>(static_cast<double>(i));
                         }
                     }
 
@@ -768,7 +753,6 @@ namespace UI {
                         });
                 }
             }
-            Gfx::pop_clip_rect();
         }
 
         // Box
@@ -822,21 +806,17 @@ namespace UI {
             auto* mouse_interact  = scene.get_component<MouseInteract>(entity);
 
             // Get mouse position, and get an actual correct top-left and bottom-right
-            const glm::vec2 mouse_pos = Input::mouse_position_pixels();
-            glm::vec2 tl_ =
-                Gfx::anchor_offset_pixels(transform->top_left + scene.top_left, transform->anchor, scene.panel_size);
-            glm::vec2 br_ =
-                Gfx::anchor_offset_pixels(transform->bottom_right + scene.top_left, transform->anchor, scene.panel_size);
+            const glm::vec2 mouse_pos = Gfx::pixels_to_scene_space(Input::mouse_position_pixels());
+            glm::vec2 tl_ = Gfx::anchor_offset_pixels(transform->top_left + scene.top_left, transform->anchor, scene.panel_size);
+            glm::vec2 br_ = Gfx::anchor_offset_pixels(transform->bottom_right + scene.top_left, transform->anchor, scene.panel_size);
             const glm::vec2 tl       = {std::min(tl_.x, br_.x), std::min(tl_.y, br_.y)};
             const glm::vec2 br       = {std::max(tl_.x, br_.x), std::max(tl_.y, br_.y)};
             const glm::vec2 scene_tl = scene.top_left;
             const glm::vec2 scene_br = scene.top_left + scene.panel_size;
 
             // Determine whether the mouse is inside the component's bounding box
-            const bool is_inside_scene = mouse_pos.x >= scene_tl.x && mouse_pos.y >= scene_tl.y && mouse_pos.x <= scene_br.x &&
-                                         mouse_pos.y <= scene_br.y;
-            const bool is_inside_bb =
-                (is_inside_scene) && (mouse_pos.x >= tl.x && mouse_pos.y >= tl.y && mouse_pos.x <= br.x && mouse_pos.y <= br.y);
+            const bool is_inside_scene = mouse_pos.x >= scene_tl.x && mouse_pos.y >= scene_tl.y && mouse_pos.x <= scene_br.x && mouse_pos.y <= scene_br.y;
+            const bool is_inside_bb = (is_inside_scene) && (mouse_pos.x >= tl.x && mouse_pos.y >= tl.y && mouse_pos.x <= br.x && mouse_pos.y <= br.y);
 
             // If the element hasn't been clicked
             if (mouse_interact->state != ClickState::click && Input::mouse_button_held(Input::MouseButton::Left) == false) {
@@ -874,16 +854,6 @@ namespace UI {
                 if (value && slider && draggable) {
                     const double value_normalized = (value->get_as_ref<double>() - range->min) / (range->max - range->min);
                     const double slider_pos       = (value_normalized * std::max(slider->curr_bar_length, 1.0f));
-
-                    if (draggable->is_horizontal) {
-                        Input::move_mouse(
-                            {slider_pos + br.x - slider->curr_bar_length, Input::mouse_position_pixels().y},
-                            Input::MoveMouseMode::Absolute);
-                    } else {
-                        Input::move_mouse(
-                            {Input::mouse_position_pixels().x, slider_pos + br.y - slider->curr_bar_length},
-                            Input::MoveMouseMode::Absolute);
-                    }
                 }
             }
 
@@ -916,7 +886,7 @@ namespace UI {
                 hitbox.bottom_right += top_left;
 
                 // See if it intersects
-                if (hitbox.intersects(Input::mouse_position_pixels())) {
+                if (hitbox.intersects(Gfx::pixels_to_scene_space(Input::mouse_position_pixels()))) {
                     // If the user is clicking
                     if (Input::mouse_button_held(Input::MouseButton::Left)) {
                         multi_hitbox->click_states[i] = ClickState::click;
@@ -1024,13 +994,11 @@ namespace UI {
                 for (size_t i = 0; i < multi_hitbox->n_hitboxes; ++i) {
                     // Transform the hitbox from local space to window space
                     Hitbox hitbox = multi_hitbox->hitboxes[i];
-                    hitbox.top_left +=
-                        Gfx::anchor_offset_pixels(transform->top_left + scene.top_left, transform->anchor, scene.panel_size);
-                    hitbox.bottom_right +=
-                        Gfx::anchor_offset_pixels(transform->top_left + scene.top_left, transform->anchor, scene.panel_size);
+                    hitbox.top_left += Gfx::anchor_offset_pixels(transform->top_left + scene.top_left, transform->anchor, scene.panel_size);
+                    hitbox.bottom_right += Gfx::anchor_offset_pixels(transform->top_left + scene.top_left, transform->anchor, scene.panel_size);
 
                     // See if it intersects
-                    if (hitbox.intersects(Input::mouse_position_pixels())) {
+                    if (hitbox.intersects(Gfx::pixels_to_scene_space(Input::mouse_position_pixels()))) {
                         // If so, select that value
                         radio_button->current_selected_index = i;
                         value->set<double>(static_cast<double>(i));
@@ -1064,6 +1032,16 @@ namespace UI {
                 }
             }
 
+            if (combobox->is_list_open && multi_hitbox->click_states[1] == ClickState::hover) {
+                float y = Gfx::pixels_to_scene_space(Input::mouse_position_pixels()).y;
+                y -= scene.top_left.y;
+                y -= transform->top_left.y;
+                y -= combobox->button_height;
+                y += combobox->current_scroll_position;
+                y /= combobox->item_height;
+                combobox->hovered_index = (int)y;
+            }
+
             // If the mouse is clicked on in general
             if (Input::mouse_button_pressed(Input::MouseButton::Left)) {
                 // If it's the top part of the combobox, toggle it
@@ -1076,6 +1054,13 @@ namespace UI {
                 else if (combobox->is_list_open) {
                     combobox->is_list_open = false;
                     combobox_handled       = true;
+                }
+
+                // If it's the list part, update the value
+                if (multi_hitbox->click_states[1] == ClickState::click) {
+                    combobox->current_selected_index = static_cast<int>(combobox->hovered_index);
+                    combobox->is_list_open           = false;
+                    value->set<double>(static_cast<double>(combobox->hovered_index));
                 }
             }
 
@@ -1099,27 +1084,23 @@ namespace UI {
                 // Otherwise if we are hovered over the button, change the index
                 if (multi_hitbox->click_states[0] == ClickState::hover) {
                     combobox->current_selected_index -= static_cast<int>(scroll);
-                    combobox->target_scroll_position =
-                        (static_cast<float>(combobox->current_selected_index) - 0.5f) * combobox->item_height;
+                    combobox->target_scroll_position = (static_cast<float>(combobox->current_selected_index) - 0.5f) * combobox->item_height;
                     float min = 0.0f;
                     float max = combobox->item_height * static_cast<float>(combobox->list_items.size()) - combobox->list_height;
                     max       = std::max(min, max);
                     combobox->target_scroll_position = std::clamp(combobox->target_scroll_position, min, max);
-                    combobox->current_selected_index =
-                        std::clamp(combobox->current_selected_index, 0, static_cast<int>(combobox->list_items.size()) - 1);
+                    combobox->current_selected_index = std::clamp(combobox->current_selected_index, 0, static_cast<int>(combobox->list_items.size()) - 1);
+                    combobox->hovered_index = combobox->current_selected_index;
                     value->set<double>(combobox->current_selected_index);
                 }
             }
 
             // Handle transform
-            const float target_bottom = transform->top_left.y + combobox->button_height +
-                                        ((combobox->is_list_open ? 1.0f : 0.0f) * combobox->list_height);
-            transform->bottom_right.y =
-                std::lerp(transform->bottom_right.y, target_bottom, 1.0f - pow(2.0f, -delta_time * 75.0f));
+            const float target_bottom = transform->top_left.y + combobox->button_height + ((combobox->is_list_open ? 1.0f : 0.0f) * combobox->list_height);
+            transform->bottom_right.y = std::lerp(transform->bottom_right.y, target_bottom, 1.0f - pow(2.0f, -delta_time * 75.0f));
 
             // Interpolate towards the scroll
-            combobox->current_scroll_position = std::lerp(
-                combobox->current_scroll_position, combobox->target_scroll_position, 1.0f - pow(2.0f, -delta_time * 25.0f));
+            combobox->current_scroll_position = std::lerp(combobox->current_scroll_position, combobox->target_scroll_position, 1.0f - pow(2.0f, -delta_time * 25.0f));
         }
     }
 
@@ -1145,7 +1126,6 @@ namespace UI {
             }
         }
 
-        // Handle clickable components
         if (do_mouse_interact) system_comp_mouse_interact(scene);
 
         // Handle comboboxes - special case: if a combobox is interacted with, don't handle any other ones
@@ -1153,22 +1133,8 @@ namespace UI {
         system_comp_combobox(scene, delta_time, combobox_handled);
 
         if (combobox_handled == false) {
-            // Handle other mouse interactable components
             system_comp_draggable_clickable(scene);
-
-            // Handle radio buttons
             system_comp_radio_buttons(scene);
         }
-
-        // Debug
-#ifdef DEBUG
-        // for (const auto entity: scene.view<UI::Transform>()) {
-            // const auto* transform = scene.get_component<UI::Transform>(entity);
-            // todo
-            // renderer.draw_box_line(
-            //     *transform, transform->top_left, transform->bottom_right, {1, 0, 1, 1}, 1, 0, transform->anchor);
-        // }
-#endif
-        // Gfx::set_clip_rect();
     }
 } // namespace UI

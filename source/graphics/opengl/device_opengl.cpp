@@ -48,7 +48,7 @@ namespace Gfx {
             out_texcoord = vertices[gl_VertexID].texcoords;          \n\
         }                                                            \n\
     ";
-    
+
     static const char shader_pixel[] = "                 \n\
         #version 430 core                                \n\
         precision mediump float;                         \n\
@@ -357,7 +357,7 @@ namespace Gfx {
         const gl::GLint top    = h - (gl::GLint)top_left.y - size.y;
         const gl::GLint width  = (gl::GLint)size.x;
         const gl::GLint height = (gl::GLint)size.y;
-        gl::glScissor(left, top, width, height);
+        gl::glScissor(left, top, std::max(0, width), std::max(0, height));
     }
 
     void DeviceOpenGL::set_viewport(glm::ivec2 top_left, glm::ivec2 size) {

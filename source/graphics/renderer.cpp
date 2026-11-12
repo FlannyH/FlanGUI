@@ -22,7 +22,7 @@
 namespace Gfx {
     struct RenderInfo {
         RenderInfoType type = RenderInfoType::None;
- 
+
         struct {
             glm::ivec2 scissor_rect_top_left = {0, 0};
             glm::ivec2 scissor_rect_size     = {99999, 99999};
@@ -34,7 +34,7 @@ namespace Gfx {
             bool scissor_rect_set            = false;
             bool viewport_set                = false;
         } persistent;
-        
+
         struct {
             std::vector<Vertex2D> vertices_to_render;
             ResourceID texture_to_bind       = ResourceID::invalid();
@@ -77,7 +77,7 @@ namespace Gfx {
     void fetch_render_info(RenderInfoType new_type, bool always_enqueue) {
         bool type_changed = (curr_render_info.type != new_type);
         bool prev_info_valid = curr_render_info.type != RenderInfoType::None;
-        
+
         if (curr_render_info.type == RenderInfoType::Raster) {
             prev_info_valid &= !curr_render_info.raster.vertices_to_render.empty();
         }
@@ -87,7 +87,7 @@ namespace Gfx {
                 render_queue.push_back(curr_render_info);
 
             switch (new_type) {
-                case RenderInfoType::None: 
+                case RenderInfoType::None:
                     break;
                 case RenderInfoType::Raster:
                     curr_render_info.raster = {};
@@ -141,8 +141,8 @@ namespace Gfx {
 
     glm::vec2 get_window_size() { return window_size; }
 
-    glm::vec2 get_viewport_size() { 
-        return curr_render_info.persistent.viewport_size; 
+    glm::vec2 get_viewport_size() {
+        return curr_render_info.persistent.viewport_size;
     }
 
     float get_delta_time() { return device->get_delta_time(); }
@@ -198,28 +198,28 @@ namespace Gfx {
         fetch_render_info(RenderInfoType::None, true);
 
         if (!render_queue.empty()) {
-#if DEBUG_RENDER_QUEUE            
+#if DEBUG_RENDER_QUEUE
             LOG(Info, "----------------Frame----------------");
-#endif            
+#endif
             for (const auto& render_info: render_queue) {
                 if (render_info.type == RenderInfoType::None) {
-#if DEBUG_RENDER_QUEUE                    
+#if DEBUG_RENDER_QUEUE
                     LOG(Debug, "RenderInfo: None");
-#endif                    
+#endif
                     continue;
                 }
                 if (render_info.type == RenderInfoType::Raster) {
-#if DEBUG_RENDER_QUEUE                    
-                    LOG(Debug, "RenderInfo: Raster: %4i triangles, texture %3i, fb %2i, viewport (size %4ix%4i at (%4i, %4i)), clip pos (size %4ix%4i at (%4i, %4i)), offset (%3f, %3f), scale (%2.1f, %2.1f)", 
-                        render_info.raster.vertices_to_render.size() / 3, render_info.raster.texture_to_bind.id, render_info.persistent.target_framebuffer, 
-                        render_info.persistent.viewport_size.x, render_info.persistent.viewport_size.y, 
-                        render_info.persistent.viewport_top_left.x, render_info.persistent.viewport_top_left.y, 
+#if DEBUG_RENDER_QUEUE
+                    LOG(Debug, "RenderInfo: Raster: %4i triangles, texture %3i, fb %2i, viewport (size %4ix%4i at (%4i, %4i)), clip pos (size %4ix%4i at (%4i, %4i)), offset (%3f, %3f), scale (%2.1f, %2.1f)",
+                        render_info.raster.vertices_to_render.size() / 3, render_info.raster.texture_to_bind.id, render_info.persistent.target_framebuffer,
+                        render_info.persistent.viewport_size.x, render_info.persistent.viewport_size.y,
+                        render_info.persistent.viewport_top_left.x, render_info.persistent.viewport_top_left.y,
                         render_info.persistent.scissor_rect_size.x, render_info.persistent.scissor_rect_size.y,
                         render_info.persistent.scissor_rect_top_left.x, render_info.persistent.scissor_rect_top_left.y,
                         render_info.persistent.view_offset.x, render_info.persistent.view_offset.y,
                         render_info.persistent.view_scale.x, render_info.persistent.view_scale.y
                     );
-#endif                    
+#endif
                     if (render_info.raster.vertices_to_render.empty()) continue;
 
                     device->upload_data_to_buffer(
@@ -238,27 +238,27 @@ namespace Gfx {
                     device->set_multisample(render_info.raster.enable_multisample);
                     device->execute_raster(render_info.raster.vertices_to_render.size());
                     device->set_multisample(false);
-                    
+
                     device->end_raster_pass();
                     continue;
                 }
                 if (render_info.type == RenderInfoType::Blit) {
-#if DEBUG_RENDER_QUEUE                    
+#if DEBUG_RENDER_QUEUE
                     LOG(Debug, "RenderInfo: Blit: (%4ix%4i) from (%4ix%4i) on texture %3i, to (%4ix%4i) on texture %i",
                         render_info.blit.size.x, render_info.blit.size.y,
                         render_info.blit.src_top_left.x, render_info.blit.src_top_left.y, render_info.blit.src_texture,
                         render_info.blit.dst_top_left.x, render_info.blit.dst_top_left.y, render_info.blit.dst_texture
                     );
-#endif                    
+#endif
                     device->blit_pixels(
                         render_info.blit.src_texture, render_info.blit.dst_texture, render_info.blit.size,
                         render_info.blit.dst_top_left, render_info.blit.src_top_left);
                     continue;
                 }
                 if (render_info.type == RenderInfoType::Clear) {
-#if DEBUG_RENDER_QUEUE                    
+#if DEBUG_RENDER_QUEUE
                     LOG(Debug, "RenderInfo: Clear: target %3i", render_info.persistent.target_framebuffer);
-#endif                    
+#endif
                     device->set_render_target(render_info.persistent.target_framebuffer);
                     device->clear_framebuffer({
                         .do_clear_color   = render_info.clear.color_enable,
@@ -348,7 +348,7 @@ namespace Gfx {
         bool enqueue = (curr_render_info.raster.texture_to_bind.as_u32() != draw_params.texture.as_u32());
         enqueue &= !curr_render_info.raster.vertices_to_render.empty();
         enqueue |= curr_render_info.raster.enable_multisample != draw_params.enable_multisample;
-        
+
         fetch_render_info(RenderInfoType::Raster, enqueue);
         curr_render_info.raster.texture_to_bind = draw_params.texture;
         curr_render_info.raster.enable_multisample = draw_params.enable_multisample;
@@ -405,7 +405,7 @@ namespace Gfx {
             draw_quad_2d({v0}, {v4}, {v7}, {v3}, draw_params); // Left
         }
     }
-    
+
     void set_view_offset_2d(glm::vec2 offset) {
         bool enqueue = false;
         if (curr_render_info.type == RenderInfoType::Raster) {
@@ -425,7 +425,7 @@ namespace Gfx {
         fetch_render_info(RenderInfoType::Raster, enqueue);
         curr_render_info.persistent.view_scale = scale;
     }
-    
+
     void set_view_offset_2d_pixels(glm::vec2 offset) {
         set_view_offset_2d(offset / get_viewport_size());
     }
@@ -474,6 +474,18 @@ namespace Gfx {
         return top_left + anchor_offsets[(size_t)anchor] * anchor_size;
     }
 
+    glm::vec2 apply_view_offset_scale(glm::vec2 vec) {
+        return (vec + get_view_offset_2d()) * get_view_scale_2d();
+    }
+
+    glm::vec2 pixels_to_scene_space(glm::vec2 vec) {
+        vec -= Gfx::get_viewport_size() / 2.0f;
+        vec /= get_view_scale_2d();
+        vec -= (get_view_offset_2d() * Gfx::get_viewport_size());
+        vec += Gfx::get_viewport_size() / 2.0f;
+        return vec;
+    }
+
     void draw_circle_2d(glm::vec2 center, glm::vec2 size, DrawParams draw_params) {
         const glm::vec2 width_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * draw_params.shape_outline_width;
         const glm::vec2 size_2d = glm::vec2(get_viewport_size().y / get_viewport_size().x, 1.0f) * size;
@@ -507,7 +519,7 @@ namespace Gfx {
                 const glm::vec2 v2 = center + circle_lut[i_actual % CIRCLE_LUT_SIZE] * (size_2d);
                 draw_quad_2d({v0}, {v1}, {v2}, {v3}, draw_params);
             }
-        } 
+        }
 
         // Filled
         else {
