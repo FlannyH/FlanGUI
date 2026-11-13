@@ -804,7 +804,12 @@ namespace Gfx {
         int width = static_cast<int>(window_size.x);
         int height = static_cast<int>(window_size.y);
 
-        stbi_write_png(path.c_str(), width, height, 4, pixels.data(), width * static_cast<int>(sizeof(PixelRGBA_8)));
+        if (stbi_write_png(path.c_str(), width, height, 4, pixels.data(), width * static_cast<int>(sizeof(PixelRGBA_8)))) {
+            LOG(Info, "Screenshot saved to \"%s\"", path.c_str());
+        }
+        else {
+            LOG(Warning, "Failed to save screenshot \"%s\"", path.c_str());
+        }
     }
 
     void set_vsync(int interval) {
